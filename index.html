@@ -4,124 +4,264 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>충주예성여고 2026 선택과목 시뮬레이터</title>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@300;400;500;700&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <script src="course_metadata.js"></script>
-    <script src="admission_recommendations.js"></script>
     
     <style>
         :root {
-            --md-sys-color-primary: #8a1c3e; /* 예성여고 이미지에 어울리는 차분한 자주/버건디 톤 */
-            --md-sys-color-on-primary: #ffffff;
-            --md-sys-color-primary-container: #ffdadb;
-            --md-sys-color-surface: #fdfcff;
-            --md-sys-color-outline: #73777f;
-            --semester-1-color: #0061a4;
-            --semester-2-color: #2e6c00;
+            --primary: #8a1c3e; /* 예성여고 상징색 (자주색 톤) */
+            --surface: #ffffff;
+            --bg: #f8f9fa;
+            --border: #dee2e6;
+            --text-main: #333333;
+            --text-sub: #666666;
         }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-            background-color: #f8f9fa;
-            margin: 0;
-            padding: 20px;
-        }
-        .header-container {
-            background: white;
-            padding: 24px;
-            border-radius: 16px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-            margin-bottom: 20px;
-            text-align: center;
-        }
-        h1 { margin: 0 0 12px 0; color: var(--md-sys-color-primary); font-size: 22px; }
+        body { font-family: 'Pretendard', -apple-system, sans-serif; background: var(--bg); color: var(--text-main); margin: 0; padding: 20px; padding-bottom: 80px; }
+        .container { max-width: 1000px; margin: 0 auto; }
+        .header { background: var(--surface); padding: 24px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); text-align: center; margin-bottom: 20px; border-top: 5px solid var(--primary); }
+        h1 { margin: 0 0 10px 0; color: var(--primary); font-size: 24px; letter-spacing: -0.5px; }
+        select { padding: 8px 16px; border-radius: 8px; border: 1px solid var(--border); font-size: 15px; cursor: pointer; outline: none; font-weight: 600; background-color: #f1f3f5; }
         
-        /* 과정 선택기 스타일 */
-        .track-selector-box {
-            display: inline-block;
-            background: #f1f3f5;
-            padding: 6px 12px;
-            border-radius: 30px;
-            margin-top: 10px;
-        }
-        .track-selector-box label { font-weight: 500; font-size: 14px; margin-right: 8px; }
-        .track-selector-box select {
-            padding: 6px 16px;
-            border-radius: 20px;
-            border: 1px solid #ced4da;
-            font-size: 14px;
-            font-weight: 600;
-            outline: none;
-            cursor: pointer;
-        }
-        /* 기존 테이블 및 시뮬레이터 UI 스타일 유지 생략 (기존 index.html의 스타일시트 내용을 그대로 붙여넣으시면 됩니다) */
+        .section { background: var(--surface); padding: 20px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); margin-bottom: 20px; }
+        .section-title { font-size: 18px; font-weight: 700; margin-bottom: 16px; color: var(--primary); border-bottom: 2px solid var(--border); padding-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+        
+        table { width: 100%; border-collapse: collapse; font-size: 14.5px; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid var(--border); vertical-align: middle; }
+        th { background: #f8f9fa; font-weight: 600; color: #495057; }
+        tr:hover { background-color: #fcfdfe; }
+        
+        .group-header { background: #fff0f3; font-weight: bold; border-left: 4px solid var(--primary); font-size: 15px; }
+        .credit-status { float: right; font-size: 14px; color: #d81b60; font-weight: 700; }
+        .status-ok { color: #2b8a3e !important; }
+        
+        .course-label { display: flex; flex-direction: column; cursor: pointer; margin: 0; width: 100%; }
+        .course-info { font-size: 12.5px; color: #868e96; display: block; margin-top: 6px; letter-spacing: -0.3px; }
+        .badge { display: inline-block; padding: 3px 8px; border-radius: 20px; font-size: 12px; background: #e9ecef; color: #495057; font-weight: 500; text-align: center; }
+        .badge-type { background: #e3f2fd; color: #1976d2; }
+        
+        input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; accent-color: var(--primary); }
+        
+        .summary-box { position: fixed; bottom: 0; left: 0; right: 0; background: var(--surface); padding: 20px; box-shadow: 0 -4px 15px rgba(0,0,0,0.08); text-align: center; font-size: 18px; font-weight: bold; z-index: 1000; border-top: 1px solid var(--border); }
+        .summary-box span { font-size: 24px; color: var(--primary); margin: 0 5px; }
+        .loading { text-align: center; padding: 40px; color: #868e96; }
     </style>
 </head>
 <body>
-
-    <div class="header-container">
-        <h1>🌸 충주예성여자고등학교 선택과목 시뮬레이터 🌸</h1>
-        <p style="color:#666; margin:0; font-size:14px;">2026학년도 입학생(3개년 교육과정 편성표 기반)</p>
-        
-        <div class="track-selector-box">
-            <label for="trackSelect">🎯 나의 교육과정 과정 선택:</label>
-            <select id="trackSelect" onchange="loadTrackData(this.value)">
+    <div class="container">
+        <div class="header">
+            <h1>🌸 충주예성여고 선택과목 시뮬레이터 🌸</h1>
+            <p style="color:#666; margin:0; font-size:14px; margin-bottom: 20px;">2026학년도 신입생 교육과정 편제표 기준</p>
+            <label style="font-weight: 600; color: #495057;">나의 교육과정 선택: </label>
+            <select id="trackSelect" onchange="loadData()">
                 <option value="general">일반 과정</option>
                 <option value="music">음악 중점 과정</option>
             </select>
         </div>
-    </div>
 
-    <div id="simulator-app">
+        <div id="designated-section" class="section">
+            <div class="section-title">🏫 학교 지정 과목 <span style="font-size:13px; color:#868e96; font-weight:normal;">(자동으로 이수하는 공통/필수 과목입니다)</span></div>
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width: 15%;">교과군</th>
+                        <th style="width: 15%;">과목 유형</th>
+                        <th style="width: 45%;">과목명 (설명 및 평가방식)</th>
+                        <th style="width: 15%; text-align:center;">편성 학점</th>
+                    </tr>
+                </thead>
+                <tbody id="designated-tbody">
+                    <tr><td colspan="4" class="loading">데이터를 불러오는 중입니다...</td></tr>
+                </tbody>
+            </table>
         </div>
 
+        <div id="selection-section" class="section">
+            <div class="section-title">✍️ 학생 선택 과목 <span style="font-size:13px; color:#868e96; font-weight:normal;">(체크박스를 눌러 원하는 과목을 선택하세요)</span></div>
+            <div id="selection-container">
+                <div class="loading">데이터를 불러오는 중입니다...</div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="summary-box">
+        현재 나의 총 선택 학점: <span id="total-credits">0</span> 학점
+    </div>
+
 <script>
-    // 현재 로드된 과정 상태 관리
-    let currentTrack = 'general';
+    let coursesData = [];
+    let groupsData = [];
 
-    // 과정 선택에 따라 파일 경로를 동적으로 지정
-    function loadTrackData(track) {
-        currentTrack = track;
-        const coursesUrl = track === 'general' ? 'chungju_general_courses.csv' : 'chungju_music_courses.csv';
-        const groupsUrl = track === 'general' ? 'chungju_general_groups.csv' : 'chungju_music_groups.csv';
+    // 1. CSV 데이터 불러오기
+    function loadData() {
+        const track = document.getElementById('trackSelect').value;
+        const coursesFile = track === 'general' ? 'chungju_general_courses.csv' : 'chungju_music_courses.csv';
+        const groupsFile = track === 'general' ? 'chungju_general_groups.csv' : 'chungju_music_groups.csv';
 
-        // PapaParse를 이용한 CSV 동적 로드
+        document.getElementById('designated-tbody').innerHTML = '<tr><td colspan="4" class="loading">데이터를 분석하고 있습니다...</td></tr>';
+        document.getElementById('selection-container').innerHTML = '';
+
         Promise.all([
-            fetchCSV(coursesUrl),
-            fetchCSV(groupsUrl)
-        ]).then(([coursesData, groupsData]) => {
-            console.log(`${track} 데이터 로드 완료`, coursesData, groupsData);
-            // 기존 렌더링 초기화 및 시뮬레이터 재시작 로직 실행
-            initSimulator(coursesData, groupsData);
+            fetchCSV(coursesFile),
+            fetchCSV(groupsFile)
+        ]).then(([courses, groups]) => {
+            coursesData = courses;
+            groupsData = groups;
+            renderSimulator();
         }).catch(err => {
-            alert("교육과정 데이터 파일을 찾을 수 없습니다. 파일명을 확인해주세요.");
+            document.getElementById('designated-tbody').innerHTML = '<tr><td colspan="4" style="text-align:center;color:red;padding:30px;">🚨 CSV 데이터 파일을 찾을 수 없습니다.<br>chungju_general_courses.csv 등의 파일이 깃허브에 잘 올라갔는지 확인해주세요!</td></tr>';
         });
     }
 
+    // CSV 파싱 공통 함수
     function fetchCSV(url) {
         return new Promise((resolve, reject) => {
             Papa.parse(url, {
                 download: true,
                 header: true,
                 skipEmptyLines: true,
-                complete: (results) => resolve(results.data),
-                error: (error) => reject(error)
+                complete: (res) => resolve(res.data),
+                error: (err) => reject(err)
             });
         });
     }
 
-    function initSimulator(courses, groups) {
-        // 기존 깃허브 소스의 렌더링 앱 로직(renderApp)을 호출하는 부분입니다.
-        // 이 곳에 기존 index.html 하단의 UI 빌드 로직을 매핑합니다.
-        const container = document.getElementById('simulator-app');
-        container.innerHTML = `<p style='text-align:center; padding:40px; color:#555;'>[${currentTrack === 'general' ? '일반과정' : '음악과정'}] 시뮬레이터 테이블 활성화 완료. 과목을 선택해 주세요.</p>`;
-        // ... (기존 데이터 바인딩 코드 연동)
+    // 과목 설명(메타데이터) 매핑 함수
+    function getMetadataInfo(subjectName) {
+        if(window.courseMetadataDb && window.courseMetadataDb[subjectName]) {
+            const meta = window.courseMetadataDb[subjectName];
+            return `<span class="course-info">📖 ${meta['설명']} | 📊 평가: <b>${meta['성적산출방식']}</b></span>`;
+        }
+        return '';
     }
 
-    // 페이지 첫 로드시 일반과정으로 시작
-    window.addEventListener('DOMContentLoaded', () => {
-        loadTrackData('general');
-    });
+    // 2. 표 그리기 (렌더링)
+    function renderSimulator() {
+        const designatedTbody = document.getElementById('designated-tbody');
+        const selectionContainer = document.getElementById('selection-container');
+        
+        designatedTbody.innerHTML = '';
+        selectionContainer.innerHTML = '';
+
+        // [학교 지정 과목 그리기]
+        const designatedCourses = coursesData.filter(c => c['학교지정'] === 'True');
+        designatedCourses.forEach(c => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td><span class="badge">${c['교과군']}</span></td>
+                <td><span class="badge badge-type">${c['과목유형'] || '일반'}</span></td>
+                <td>
+                    <strong style="font-size: 15px;">${c['과목명']}</strong>
+                    ${getMetadataInfo(c['과목명'])}
+                </td>
+                <td style="text-align:center; font-weight:600;">${c['편성학점']}</td>
+            `;
+            designatedTbody.appendChild(tr);
+        });
+
+        // [학생 선택 과목 그리기]
+        const selectionCourses = coursesData.filter(c => c['학년선택'] === 'True');
+        
+        groupsData.forEach(group => {
+            const groupCode = group['선택군_코드'];
+            const groupTargetCount = parseInt(group['선택군_선택수']) || 0;
+
+            const groupDiv = document.createElement('div');
+            groupDiv.style.marginBottom = '30px';
+            
+            // 그룹 헤더 (택 N)
+            const groupTitle = document.createElement('div');
+            groupTitle.className = 'group-header';
+            groupTitle.style.padding = '14px 16px';
+            groupTitle.innerHTML = `
+                📌 [${group['선택군_학년학기']}] 학생 선택군 - ${group['선택군_원문']} 
+                <span class="credit-status" id="status-${groupCode}">0 / ${groupTargetCount} 과목 선택됨</span>
+            `;
+            groupDiv.appendChild(groupTitle);
+
+            // 해당 그룹 과목 테이블
+            const table = document.createElement('table');
+            const tbody = document.createElement('tbody');
+            
+            const groupCourses = selectionCourses.filter(c => c['선택군_코드'] === groupCode);
+            groupCourses.forEach(c => {
+                const tr = document.createElement('tr');
+                const credit = parseInt(c['편성학점']) || 0;
+                
+                tr.innerHTML = `
+                    <td style="width: 5%; text-align: center;">
+                        <input type="checkbox" class="course-checkbox" 
+                            id="chk_${c['과목명']}"
+                            data-group="${groupCode}" 
+                            data-credit="${credit}" 
+                            data-max="${groupTargetCount}"
+                            onchange="updateCredits(this)">
+                    </td>
+                    <td style="width: 15%;">
+                        <span class="badge">${c['교과군']}</span><br>
+                        <span class="badge badge-type" style="margin-top:5px;">${c['과목유형'] || '일반'}</span>
+                    </td>
+                    <td style="width: 80%;">
+                        <label class="course-label" for="chk_${c['과목명']}">
+                            <div><strong style="font-size: 15.5px;">${c['과목명']}</strong> <span style="color:var(--primary); font-size:13px; margin-left:4px;">(${credit}학점)</span></div>
+                            ${getMetadataInfo(c['과목명'])}
+                        </label>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+            
+            table.appendChild(tbody);
+            groupDiv.appendChild(table);
+            selectionContainer.appendChild(groupDiv);
+        });
+
+        updateTotalSummary(); // 초기 학점 0 세팅
+    }
+
+    // 3. 체크박스 클릭 시 학점 계산 로직
+    function updateCredits(checkbox) {
+        const groupCode = checkbox.getAttribute('data-group');
+        const maxSelect = parseInt(checkbox.getAttribute('data-max'));
+        
+        // 같은 그룹(선택군) 안에서 체크된 항목들 가져오기
+        const groupCheckboxes = document.querySelectorAll(`.course-checkbox[data-group="${groupCode}"]`);
+        const checkedBoxes = Array.from(groupCheckboxes).filter(cb => cb.checked);
+        
+        // 선택 초과 방지
+        if (checkedBoxes.length > maxSelect) {
+            alert(`선생님! 이 선택군에서는 최대 ${maxSelect}과목까지만 선택할 수 있습니다.`);
+            checkbox.checked = false;
+            return;
+        }
+
+        // 선택 상태 텍스트 업데이트 (예: 2 / 5 과목 선택됨)
+        let currentSelectedCount = checkedBoxes.length;
+        const statusSpan = document.getElementById(`status-${groupCode}`);
+        statusSpan.innerHTML = `${currentSelectedCount} / ${maxSelect} 과목 선택됨`;
+        
+        if(currentSelectedCount === maxSelect) {
+            statusSpan.classList.add('status-ok');
+            statusSpan.innerHTML += ' ✅ (조건 충족)';
+        } else {
+            statusSpan.classList.remove('status-ok');
+        }
+
+        updateTotalSummary();
+    }
+
+    // 총 선택 학점 계산기
+    function updateTotalSummary() {
+        const allChecked = document.querySelectorAll('.course-checkbox:checked');
+        let total = 0;
+        allChecked.forEach(cb => {
+            total += parseInt(cb.getAttribute('data-credit'));
+        });
+        document.getElementById('total-credits').innerText = total;
+    }
+
+    // 브라우저 켜지면 무조건 실행
+    window.onload = loadData;
 </script>
 </body>
 </html>
