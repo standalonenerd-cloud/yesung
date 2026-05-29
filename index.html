@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>충주예성여고 2026 선택과목 시뮬레이터</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <script src="course_metadata.js"></script>
+    <script src="admission_recommendations.js"></script>
+    
+    <style>
+        :root {
+            --md-sys-color-primary: #8a1c3e; /* 예성여고 이미지에 어울리는 차분한 자주/버건디 톤 */
+            --md-sys-color-on-primary: #ffffff;
+            --md-sys-color-primary-container: #ffdadb;
+            --md-sys-color-surface: #fdfcff;
+            --md-sys-color-outline: #73777f;
+            --semester-1-color: #0061a4;
+            --semester-2-color: #2e6c00;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            background-color: #f8f9fa;
+            margin: 0;
+            padding: 20px;
+        }
+        .header-container {
+            background: white;
+            padding: 24px;
+            border-radius: 16px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        h1 { margin: 0 0 12px 0; color: var(--md-sys-color-primary); font-size: 22px; }
+        
+        /* 과정 선택기 스타일 */
+        .track-selector-box {
+            display: inline-block;
+            background: #f1f3f5;
+            padding: 6px 12px;
+            border-radius: 30px;
+            margin-top: 10px;
+        }
+        .track-selector-box label { font-weight: 500; font-size: 14px; margin-right: 8px; }
+        .track-selector-box select {
+            padding: 6px 16px;
+            border-radius: 20px;
+            border: 1px solid #ced4da;
+            font-size: 14px;
+            font-weight: 600;
+            outline: none;
+            cursor: pointer;
+        }
+        /* 기존 테이블 및 시뮬레이터 UI 스타일 유지 생략 (기존 index.html의 스타일시트 내용을 그대로 붙여넣으시면 됩니다) */
+    </style>
+</head>
+<body>
+
+    <div class="header-container">
+        <h1>🌸 충주예성여자고등학교 선택과목 시뮬레이터 🌸</h1>
+        <p style="color:#666; margin:0; font-size:14px;">2026학년도 입학생(3개년 교육과정 편성표 기반)</p>
+        
+        <div class="track-selector-box">
+            <label for="trackSelect">🎯 나의 교육과정 과정 선택:</label>
+            <select id="trackSelect" onchange="loadTrackData(this.value)">
+                <option value="general">일반 과정</option>
+                <option value="music">음악 중점 과정</option>
+            </select>
+        </div>
+    </div>
+
+    <div id="simulator-app">
+        </div>
+
+<script>
+    // 현재 로드된 과정 상태 관리
+    let currentTrack = 'general';
+
+    // 과정 선택에 따라 파일 경로를 동적으로 지정
+    function loadTrackData(track) {
+        currentTrack = track;
+        const coursesUrl = track === 'general' ? 'chungju_general_courses.csv' : 'chungju_music_courses.csv';
+        const groupsUrl = track === 'general' ? 'chungju_general_groups.csv' : 'chungju_music_groups.csv';
+
+        // PapaParse를 이용한 CSV 동적 로드
+        Promise.all([
+            fetchCSV(coursesUrl),
+            fetchCSV(groupsUrl)
+        ]).then(([coursesData, groupsData]) => {
+            console.log(`${track} 데이터 로드 완료`, coursesData, groupsData);
+            // 기존 렌더링 초기화 및 시뮬레이터 재시작 로직 실행
+            initSimulator(coursesData, groupsData);
+        }).catch(err => {
+            alert("교육과정 데이터 파일을 찾을 수 없습니다. 파일명을 확인해주세요.");
+        });
+    }
+
+    function fetchCSV(url) {
+        return new Promise((resolve, reject) => {
+            Papa.parse(url, {
+                download: true,
+                header: true,
+                skipEmptyLines: true,
+                complete: (results) => resolve(results.data),
+                error: (error) => reject(error)
+            });
+        });
+    }
+
+    function initSimulator(courses, groups) {
+        // 기존 깃허브 소스의 렌더링 앱 로직(renderApp)을 호출하는 부분입니다.
+        // 이 곳에 기존 index.html 하단의 UI 빌드 로직을 매핑합니다.
+        const container = document.getElementById('simulator-app');
+        container.innerHTML = `<p style='text-align:center; padding:40px; color:#555;'>[${currentTrack === 'general' ? '일반과정' : '음악과정'}] 시뮬레이터 테이블 활성화 완료. 과목을 선택해 주세요.</p>`;
+        // ... (기존 데이터 바인딩 코드 연동)
+    }
+
+    // 페이지 첫 로드시 일반과정으로 시작
+    window.addEventListener('DOMContentLoaded', () => {
+        loadTrackData('general');
+    });
+</script>
+</body>
+</html>
