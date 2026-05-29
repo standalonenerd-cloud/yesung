@@ -4,264 +4,927 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>충주예성여고 2026 선택과목 시뮬레이터</title>
-    <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
-    <script src="course_metadata.js"></script>
-    
     <style>
         :root {
-            --primary: #8a1c3e; /* 예성여고 상징색 (자주색 톤) */
-            --surface: #ffffff;
-            --bg: #f8f9fa;
-            --border: #dee2e6;
-            --text-main: #333333;
-            --text-sub: #666666;
+            /* 예성여고 테마 컬러 (자주/와인톤) */
+            --md-sys-color-primary: #8a1c3e;
+            --md-sys-color-on-primary: #ffffff;
+            --md-sys-color-primary-container: #ffdadb;
+            --md-sys-color-on-primary-container: #3b0014;
+            --md-sys-color-surface: #fdfcff;
+            --md-sys-color-outline: #73777f;
+            
+            --semester-1-color: #8a1c3e;
+            --semester-2-color: #5c1229;
+
+            /* Category Colors */
+            --cat-국어: #f472b6;
+            --cat-수학: #f59e0b;
+            --cat-영어: #10b981;
+            --cat-사회: #3b82f6;
+            --cat-일반사회: #3b82f6;
+            --cat-역사: #2563eb;
+            --cat-지리: #06b6d4;
+            --cat-윤리: #14b8a6;
+            --cat-과학: #8b5cf6;
+            --cat-물리: #7c3aed;
+            --cat-화학: #a855f7;
+            --cat-생명: #22c55e;
+            --cat-지구과학: #0ea5e9;
+            --cat-체육: #6366f1;
+            --cat-예술: #ec4899;
+            --cat-생활: #d2a679;
+            --cat-음악: #f472b6;
+            --cat-미술: #c084fc;
+            --cat-default: #94a3b8;
         }
-        body { font-family: 'Pretendard', -apple-system, sans-serif; background: var(--bg); color: var(--text-main); margin: 0; padding: 20px; padding-bottom: 80px; }
-        .container { max-width: 1000px; margin: 0 auto; }
-        .header { background: var(--surface); padding: 24px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); text-align: center; margin-bottom: 20px; border-top: 5px solid var(--primary); }
-        h1 { margin: 0 0 10px 0; color: var(--primary); font-size: 24px; letter-spacing: -0.5px; }
-        select { padding: 8px 16px; border-radius: 8px; border: 1px solid var(--border); font-size: 15px; cursor: pointer; outline: none; font-weight: 600; background-color: #f1f3f5; }
+
+        body {
+            font-family: 'Roboto', -apple-system, sans-serif;
+            background-color: #f1f3f6;
+            color: #1e293b;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        header {
+            background-color: var(--md-sys-color-primary);
+            color: white;
+            padding: 8px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            height: 54px;
+            box-sizing: border-box;
+            z-index: 2000;
+        }
+
+        .track-select {
+            padding: 4px 10px;
+            border-radius: 6px;
+            border: 1px solid rgba(255,255,255,0.5);
+            background: rgba(255,255,255,0.1);
+            color: white;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            outline: none;
+        }
+        .track-select option {
+            color: #333;
+            background: white;
+        }
+
+        .main-tabs {
+            position: relative;
+            display: flex;
+            background: white;
+            padding: 2px;
+            border-bottom: 1px solid #e2e8f0;
+            justify-content: center;
+            height: 40px;
+            box-sizing: border-box;
+            z-index: 2000;
+        }
+
+        .main-tab-btn {
+            padding: 4px 16px;
+            border: none;
+            background: none;
+            border-radius: 16px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: var(--md-sys-color-outline);
+        }
+
+        .main-tab-btn.active {
+            background: var(--md-sys-color-primary-container);
+            color: var(--md-sys-color-on-primary-container);
+        }
+
+        .main-tab-btn.utility {
+            font-size: 0.78rem;
+            opacity: 0.75;
+        }
+
+        .copy-selection-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 6px 12px;
+            border: 1px solid rgba(255,255,255,0.45);
+            border-radius: 16px;
+            background: rgba(255,255,255,0.2);
+            color: white;
+            font-size: 0.8rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .copy-selection-btn:hover { background: rgba(255,255,255,0.3); }
+        .copy-selection-btn .material-icons-round { font-size: 16px; }
+
+        #simWrapper {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .simulator-container {
+            flex: 1;
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 40px;
+            padding: 20px;
+            box-sizing: border-box;
+            background-color: #e2e8f0;
+            z-index: 10;
+            overflow-x: auto;
+        }
+
+        .semester-panel {
+            background: white;
+            display: flex;
+            flex-direction: column;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            height: 100%;
+            position: relative;
+            border: 1px solid #cbd5e1;
+            min-width: 150px;
+        }
+
+        .semester-panel::after {
+            content: "";
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 80px;
+            background: linear-gradient(transparent, rgba(255, 255, 255, 1) 90%);
+            pointer-events: none;
+            transition: opacity 0.3s;
+            z-index: 20;
+            opacity: 1;
+        }
+        .semester-panel.scrolled-to-bottom::after { opacity: 0; }
+
+        .semester-header {
+            padding: 6px;
+            font-weight: 700;
+            font-size: 0.75rem;
+            color: white;
+            text-align: center;
+            z-index: 30;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .sem-header-1 { background-color: var(--semester-1-color); }
+        .sem-header-2 { background-color: var(--semester-2-color); }
+        .semester-header.sem-complete {
+            background-color: #15803d;
+            box-shadow: inset 0 -3px 0 #bbf7d0;
+        }
+        .semester-complete-badge {
+            display: none;
+            padding: 1px 5px;
+            border-radius: 999px;
+            background: rgba(255,255,255,0.22);
+            font-size: 0.62rem;
+            font-weight: 700;
+        }
+        .semester-header.sem-complete .semester-complete-badge { display: inline-flex; }
+
+        .semester-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px 8px 80px 8px;
+            scrollbar-width: thin;
+            z-index: 10;
+        }
+
+        .semester-content::-webkit-scrollbar { width: 4px; }
+        .semester-content::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 2px; }
+
+        .course-item {
+            padding: 4px 6px;
+            margin-bottom: 6px;
+            border-radius: 6px;
+            border: 2px solid #e2e8f0;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            font-size: 0.7rem;
+            background-color: white;
+            position: relative;
+            z-index: 10;
+            transition: all 0.2s ease;
+        }
+
+        .course-item.mandatory { 
+            cursor: default; 
+            background-color: #e2e8f0;
+            border-color: #cbd5e1;
+            color: #64748b;
+        }
+        .course-item.mandatory .check-box { color: #94a3b8; }
+        .course-item.mandatory .course-name { color: #475569; }
+
+        .course-item.group-hover {
+            border-color: #64748b !important;
+            box-shadow: 0 0 0 2px rgba(100, 116, 139, 0.1);
+            transform: translateY(-1px);
+        }
+
+        .course-item.selected {
+            background-color: #fff0f3 !important;
+            border-color: var(--md-sys-color-primary) !important;
+        }
+
+        .course-item.group-complete {
+            border-color: #22c55e;
+            box-shadow: inset 4px 0 0 #22c55e;
+        }
+
+        .item-row { display: flex; align-items: flex-start; gap: 6px; width: 100%; }
+        .check-box { font-size: 16px; color: #cbd5e1; flex-shrink: 0; }
+        .mandatory .check-box { color: #64748b; }
+        .selected .check-box { color: var(--md-sys-color-primary); }
+        .course-name { font-weight: 700; flex: 1; line-height: 1.2; word-break: keep-all; }
+
+        .badges-row { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 2px; }
+        .tag { padding: 1px 4px; border-radius: 4px; font-size: 0.6rem; font-weight: 700; color: white; }
+        .tag.extra-info {
+            display: inline-flex;
+            align-items: center;
+            gap: 1px;
+            background-color: #f97316;
+            font-size: 0.55rem;
+        }
         
-        .section { background: var(--surface); padding: 20px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); margin-bottom: 20px; }
-        .section-title { font-size: 18px; font-weight: 700; margin-bottom: 16px; color: var(--primary); border-bottom: 2px solid var(--border); padding-bottom: 8px; display: flex; align-items: center; gap: 8px; }
-        
-        table { width: 100%; border-collapse: collapse; font-size: 14.5px; }
-        th, td { padding: 12px; text-align: left; border-bottom: 1px solid var(--border); vertical-align: middle; }
-        th { background: #f8f9fa; font-weight: 600; color: #495057; }
-        tr:hover { background-color: #fcfdfe; }
-        
-        .group-header { background: #fff0f3; font-weight: bold; border-left: 4px solid var(--primary); font-size: 15px; }
-        .credit-status { float: right; font-size: 14px; color: #d81b60; font-weight: 700; }
-        .status-ok { color: #2b8a3e !important; }
-        
-        .course-label { display: flex; flex-direction: column; cursor: pointer; margin: 0; width: 100%; }
-        .course-info { font-size: 12.5px; color: #868e96; display: block; margin-top: 6px; letter-spacing: -0.3px; }
-        .badge { display: inline-block; padding: 3px 8px; border-radius: 20px; font-size: 12px; background: #e9ecef; color: #495057; font-weight: 500; text-align: center; }
-        .badge-type { background: #e3f2fd; color: #1976d2; }
-        
-        input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; accent-color: var(--primary); }
-        
-        .summary-box { position: fixed; bottom: 0; left: 0; right: 0; background: var(--surface); padding: 20px; box-shadow: 0 -4px 15px rgba(0,0,0,0.08); text-align: center; font-size: 18px; font-weight: bold; z-index: 1000; border-top: 1px solid var(--border); }
-        .summary-box span { font-size: 24px; color: var(--primary); margin: 0 5px; }
-        .loading { text-align: center; padding: 40px; color: #868e96; }
+        .group-separator {
+            margin: 8px 0 4px;
+            padding: 2px 6px;
+            font-size: 0.65rem;
+            font-weight: 700;
+            color: #475569;
+            background-color: #f1f5f9;
+            border-radius: 4px;
+            display: flex;
+            justify-content: space-between;
+        }
+        .group-separator.group-complete {
+            background-color: #dcfce7;
+            color: #166534;
+            border: 1px solid #22c55e;
+        }
+        .group-status { color: #ef4444; }
+        .group-separator.group-complete .group-status { color: #15803d; }
+
+        #svgOverlay {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; z-index: 1000;
+        }
+        .path-arrow {
+            stroke-width: 1.5; fill: none; transition: opacity 0.3s, stroke-width 0.3s; opacity: 0.05;
+        }
+        .path-arrow.active { opacity: 0.4; stroke-width: 2; }
+        .path-arrow.selected-path { opacity: 0.8; stroke-width: 4; }
+
+        .summary-bar {
+            background: white;
+            border-top: 1px solid #e2e8f0;
+            padding: 4px 16px;
+            display: flex;
+            justify-content: flex-end;
+            gap: 24px;
+            height: 32px;
+            align-items: center;
+            font-size: 0.85rem;
+            z-index: 2000;
+        }
+        .stat-val { font-weight: 700; color: var(--md-sys-color-primary); }
+
+        .hidden { display: none !important; }
+
+        /* Tooltip */
+        #courseTooltip {
+            position: fixed; background: white; border: 1px solid #cbd5e1; padding: 12px;
+            border-radius: 12px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            z-index: 5000; width: 280px; pointer-events: none; display: none;
+            flex-direction: column; gap: 8px; font-size: 0.8rem; line-height: 1.5;
+        }
+        .tooltip-title { font-weight: 700; font-size: 0.9rem; color: var(--md-sys-color-primary); border-bottom: 1px solid #f1f5f9; padding-bottom: 4px; margin-bottom: 4px; }
+        .tooltip-row { display: flex; gap: 8px; }
+        .tooltip-label { font-weight: 700; color: #64748b; flex-shrink: 0; width: 80px; }
+        .tooltip-value { color: #1e293b; }
+        .tooltip-desc { margin-top: 4px; padding-top: 4px; border-top: 1px dashed #e2e8f0; color: #475569; font-style: italic; }
+
+        /* Full Data Table (원자료 뷰) */
+        .full-data-table {
+            width: 100%; border-collapse: separate; border-spacing: 0;
+            background: white; border: 1px solid #cbd5e1; border-radius: 8px;
+            overflow: hidden; font-size: 0.78rem;
+        }
+        .full-data-table th, .full-data-table td {
+            padding: 8px; border-bottom: 1px solid #e2e8f0; text-align: left;
+            vertical-align: middle; white-space: nowrap;
+        }
+        .full-data-table th {
+            position: sticky; top: 0; z-index: 1; background: #f1f5f9; color: #334155; font-weight: 700;
+        }
+
+        /* 기타 대입 권장과목 스타일 (기존 유지) */
+        .admission-container {
+            flex: 1; overflow: hidden; padding: 14px 18px; box-sizing: border-box;
+            background: #f1f3f6; display: flex; flex-direction: column; gap: 10px;
+        }
+        .admission-toolbar { background: white; border: 1px solid #dbe3ef; border-radius: 8px; padding: 12px; box-shadow: 0 2px 5px rgba(15, 23, 42, 0.06); }
+        .admission-title-row { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 10px; }
+        .admission-title { margin: 0; font-size: 1rem; color: #0f172a; }
+        .admission-note { color: #64748b; font-size: 0.75rem; }
+        .admission-controls { display: grid; grid-template-columns: minmax(180px, 1fr) minmax(180px, 1.2fr) minmax(220px, 1.4fr) auto; gap: 10px; align-items: end; }
+        .admission-control { display: flex; flex-direction: column; gap: 4px; position: relative; }
+        .admission-control label { font-size: 0.72rem; font-weight: 700; color: #475569; }
+        .admission-input { border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px 10px; font-size: 0.8rem; outline: none; }
+        .admission-button {
+            display: inline-flex; align-items: center; justify-content: center; gap: 4px;
+            border: none; border-radius: 7px; padding: 9px 12px; background: var(--md-sys-color-primary); color: white;
+            font-size: 0.78rem; font-weight: 700; cursor: pointer; white-space: nowrap;
+        }
+        .admission-dropdown { display: none; position: absolute; top: 100%; left: 0; right: 0; max-height: 220px; overflow-y: auto; background: white; border: 1px solid #cbd5e1; z-index: 3500; }
+        .admission-dropdown-item { padding: 8px 10px; cursor: pointer; font-size: 0.78rem; }
+        .admission-dropdown-item:hover { background: #f1f5f9; }
+        .admission-selected-strip { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; min-height: 24px; align-items: center; }
+        .admission-chip { border: 1px solid #ffdadb; background: #fff0f3; color: var(--md-sys-color-primary); border-radius: 999px; padding: 3px 8px; font-size: 0.72rem; font-weight: 700; cursor: pointer; }
+        .admission-count { font-size: 0.78rem; color: #475569; display: flex; justify-content: space-between; align-items: center; }
+        .admission-table-wrapper { flex: 1; overflow: auto; background: white; border: 1px solid #dbe3ef; border-radius: 8px; }
+        .admission-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 0.78rem; }
+        .admission-table th, .admission-table td { padding: 10px; border-bottom: 1px solid #e2e8f0; }
+        .admission-table th { position: sticky; top: 0; z-index: 2; background: #3b0014; color: white; text-align: left; }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <h1>🌸 충주예성여고 선택과목 시뮬레이터 🌸</h1>
-            <p style="color:#666; margin:0; font-size:14px; margin-bottom: 20px;">2026학년도 신입생 교육과정 편제표 기준</p>
-            <label style="font-weight: 600; color: #495057;">나의 교육과정 선택: </label>
-            <select id="trackSelect" onchange="loadData()">
-                <option value="general">일반 과정</option>
-                <option value="music">음악 중점 과정</option>
-            </select>
-        </div>
 
-        <div id="designated-section" class="section">
-            <div class="section-title">🏫 학교 지정 과목 <span style="font-size:13px; color:#868e96; font-weight:normal;">(자동으로 이수하는 공통/필수 과목입니다)</span></div>
-            <table>
-                <thead>
-                    <tr>
-                        <th style="width: 15%;">교과군</th>
-                        <th style="width: 15%;">과목 유형</th>
-                        <th style="width: 45%;">과목명 (설명 및 평가방식)</th>
-                        <th style="width: 15%; text-align:center;">편성 학점</th>
-                    </tr>
-                </thead>
-                <tbody id="designated-tbody">
-                    <tr><td colspan="4" class="loading">데이터를 불러오는 중입니다...</td></tr>
-                </tbody>
-            </table>
-        </div>
+<div id="courseTooltip"></div>
+<div id="admissionPopover" class="admission-popover"></div>
 
-        <div id="selection-section" class="section">
-            <div class="section-title">✍️ 학생 선택 과목 <span style="font-size:13px; color:#868e96; font-weight:normal;">(체크박스를 눌러 원하는 과목을 선택하세요)</span></div>
-            <div id="selection-container">
-                <div class="loading">데이터를 불러오는 중입니다...</div>
+<header>
+    <div style="display:flex; align-items:center; gap:12px;">
+        <span class="material-icons-round" style="font-size:24px;">school</span>
+        <h1 style="margin:0; font-size:1.1rem; font-weight: 700;">충주예성여고 교육과정 로드맵 시뮬레이터</h1>
+        
+        <select id="trackSelect" class="track-select" onchange="loadTrackData(this.value)">
+            <option value="general">일반 과정</option>
+            <option value="music">음악 중점 과정</option>
+        </select>
+    </div>
+    <div style="display:flex; align-items:center; gap:16px;">
+        <div id="simStats" style="font-size:0.85rem; opacity:0.9;">
+            총 이수 학점: <span id="totalCredits" style="font-weight:700;">0</span>
+        </div>
+        <button id="copySelectionBtn" class="copy-selection-btn" onclick="copySelectedCourses()">
+            <span class="material-icons-round">content_copy</span>
+            과목 복사
+        </button>
+    </div>
+</header>
+
+<div class="main-tabs">
+    <button class="main-tab-btn active" onclick="switchTab('simulator')">로드맵 시뮬레이터</button>
+    <button class="main-tab-btn" onclick="switchTab('admission')">대입 권장과목 검색</button>
+    <button class="main-tab-btn utility" onclick="switchTab('full')">원자료 표</button>
+</div>
+
+<div id="simWrapper">
+    <svg id="svgOverlay"></svg>
+    <div id="tab-simulator" class="simulator-container"></div>
+</div>
+
+<div id="tab-full" class="hidden" style="flex:1; overflow:auto; padding:16px;">
+    <div id="fullViewContent"></div>
+</div>
+
+<div id="tab-admission" class="hidden admission-container">
+    <div class="admission-toolbar">
+        <div class="admission-title-row">
+            <h2 class="admission-title">2028학년도 대입 반영 및 권장과목 검색</h2>
+            <div class="admission-note">전국 주요 대학 발표 기준</div>
+        </div>
+        <div class="admission-controls">
+            <div class="admission-control">
+                <label>대학 필터</label>
+                <input class="admission-input" type="text" id="admissionUniInput" placeholder="대학명 입력 또는 선택" autocomplete="off">
+                <div id="admissionUniDropdown" class="admission-dropdown"></div>
             </div>
+            <div class="admission-control">
+                <label>학과/모집단위 검색</label>
+                <input class="admission-input" type="text" id="admissionDeptSearch" placeholder="예: 간호, 국어국문, 심리">
+            </div>
+            <div class="admission-control">
+                <label>과목 검색</label>
+                <input class="admission-input" type="text" id="admissionSubjectSearch" placeholder="예: 확률과 통계, 정치">
+            </div>
+            <button id="admissionLoadSelectedBtn" class="admission-button" type="button">
+                <span class="material-icons-round">playlist_add</span> 선택과목 연동
+            </button>
         </div>
+        <div id="admissionSelectedChips" class="admission-selected-strip"></div>
     </div>
-    
-    <div class="summary-box">
-        현재 나의 총 선택 학점: <span id="total-credits">0</span> 학점
+    <div id="admissionCountInfo" class="admission-count"></div>
+    <div class="admission-table-wrapper">
+        <table class="admission-table">
+            <thead>
+                <tr>
+                    <th style="width:12%">대학</th>
+                    <th style="width:26%">모집단위</th>
+                    <th style="width:30%">핵심과목</th>
+                    <th style="width:24%">권장과목</th>
+                    <th style="width:8%">비고</th>
+                </tr>
+            </thead>
+            <tbody id="admissionTableBody">
+                <tr><td style="text-align:center; padding: 40px; color: #666;" colspan="5">데이터를 불러오는 중입니다.</td></tr>
+            </tbody>
+        </table>
     </div>
+</div>
+
+<div class="summary-bar" id="summaryBar">
+    <div>선택 과목: <span id="totalSelected" class="stat-val">0</span>개 | 공통/필수 학점: <span id="totalMandatoryCredits" class="stat-val">0</span></div>
+</div>
+
+<script src="course_metadata.js"></script>
+<script src="admission_recommendations.js"></script>
 
 <script>
-    let coursesData = [];
+    let rawData = [];
     let groupsData = [];
+    let selectedCourses = new Set();
+    const semesters = ["1-1", "1-2", "2-1", "2-2", "3-1", "3-2"];
+    let creativeActivityCredits = 18; // 충주예성여고 창체 기본 18학점
+    const graduationCredits = 192;
+    let admissionInitialized = false;
+    let admissionSelectedUni = 'all';
+    let admissionCurrentFiltered = [];
+    let admissionHideTimer = null;
 
-    // 1. CSV 데이터 불러오기
-    function loadData() {
-        const track = document.getElementById('trackSelect').value;
-        const coursesFile = track === 'general' ? 'chungju_general_courses.csv' : 'chungju_music_courses.csv';
-        const groupsFile = track === 'general' ? 'chungju_general_groups.csv' : 'chungju_music_groups.csv';
-
-        document.getElementById('designated-tbody').innerHTML = '<tr><td colspan="4" class="loading">데이터를 분석하고 있습니다...</td></tr>';
-        document.getElementById('selection-container').innerHTML = '';
-
-        Promise.all([
-            fetchCSV(coursesFile),
-            fetchCSV(groupsFile)
-        ]).then(([courses, groups]) => {
-            coursesData = courses;
-            groupsData = groups;
-            renderSimulator();
-        }).catch(err => {
-            document.getElementById('designated-tbody').innerHTML = '<tr><td colspan="4" style="text-align:center;color:red;padding:30px;">🚨 CSV 데이터 파일을 찾을 수 없습니다.<br>chungju_general_courses.csv 등의 파일이 깃허브에 잘 올라갔는지 확인해주세요!</td></tr>';
-        });
+    // 카테고리별 색상 매핑
+    function getCategoryColor(cat) {
+        if (cat === '음악') return 'var(--cat-음악)';
+        if (cat === '미술') return 'var(--cat-미술)';
+        if (cat === '일반사회') return 'var(--cat-일반사회)';
+        if (cat === '역사') return 'var(--cat-역사)';
+        if (cat === '지리') return 'var(--cat-지리)';
+        if (cat === '윤리') return 'var(--cat-윤리)';
+        if (cat === '물리') return 'var(--cat-물리)';
+        if (cat === '화학') return 'var(--cat-화학)';
+        if (cat === '생명') return 'var(--cat-생명)';
+        if (cat === '지구과학') return 'var(--cat-지구과학)';
+        if (cat.includes('국어')) return 'var(--cat-국어)';
+        if (cat.includes('수학')) return 'var(--cat-수학)';
+        if (cat.includes('영어')) return 'var(--cat-영어)';
+        if (cat.includes('사회')) return 'var(--cat-사회)';
+        if (cat.includes('과학')) return 'var(--cat-과학)';
+        if (cat.includes('체육')) return 'var(--cat-체육)';
+        if (cat.includes('예술')) return 'var(--cat-예술)';
+        if (cat.includes('기술') || cat.includes('가정') || cat.includes('정보') || cat.includes('생활')) return 'var(--cat-생활)';
+        return 'var(--cat-default)';
     }
 
-    // CSV 파싱 공통 함수
-    function fetchCSV(url) {
+    function getCourseCategory(row) {
+        const subject = row['과목명'] || '';
+        const cat = row['교과군'] || '';
+        if (cat.includes('예술')) {
+            if (subject.includes('음악') || subject.includes('합창') || subject.includes('시창')) return '음악';
+            if (subject.includes('미술') || subject.includes('조형')) return '미술';
+        }
+        if (cat.includes('사회')) {
+            if (subject.includes('통합사회')) return '사회';
+            if (['한국사1', '한국사2', '세계사', '동아시아 역사 기행', '역사로 탐구하는 현대 세계'].includes(subject)) return '역사';
+            if (['세계시민과 지리', '한국지리 탐구', '도시의 미래 탐구', '기후변화와 지속가능한 세계'].includes(subject)) return '지리';
+            if (['현대사회와 윤리', '윤리와 사상', '인문학과 윤리', '윤리 문제 탐구'].includes(subject)) return '윤리';
+            return '일반사회';
+        }
+        if (cat.includes('과학')) {
+            if (subject.includes('통합과학') || subject.includes('과학탐구실험') || subject.includes('융합과학')) return '과학';
+            if (subject.includes('물리') || subject.includes('역학') || subject.includes('전자기')) return '물리';
+            if (subject.includes('화학') || subject.includes('물질')) return '화학';
+            if (subject.includes('생명') || subject.includes('생물') || subject.includes('세포')) return '생명';
+            if (subject.includes('지구') || subject.includes('행성') || subject.includes('우주')) return '지구과학';
+        }
+        return cat;
+    }
+
+    function getCourseCategoryColor(row) {
+        return getCategoryColor(getCourseCategory(row));
+    }
+
+    function getPathCategories(row) {
+        const subject = row['과목명'] || '';
+        if (subject.includes('통합사회')) return ['사회', '일반사회', '지리', '윤리', '역사'];
+        if (subject.includes('한국사')) return ['역사'];
+        if (subject.includes('통합과학') || subject.includes('과학탐구실험')) return ['과학', '물리', '화학', '생명', '지구과학'];
+        return [getCourseCategory(row)];
+    }
+
+    function getCourseMeta(row, displayCategory) {
+        const courseName = row['과목명'] || '';
+        const dbMeta = window.courseMetadataDb?.[courseName] || {};
+        return {
+            "세부교과": dbMeta["세부교과"] || displayCategory,
+            "설명": dbMeta["설명"] || "2022 개정 교육과정 상세 설명이 없습니다.",
+            "성적산출방식": dbMeta["성적산출방식"] || "평가 정보 확인 필요"
+        };
+    }
+
+    // CSV 파일 동적 로드 함수
+    function fetchCSV(filename) {
         return new Promise((resolve, reject) => {
-            Papa.parse(url, {
+            Papa.parse(filename, {
                 download: true,
                 header: true,
                 skipEmptyLines: true,
-                complete: (res) => resolve(res.data),
+                complete: (results) => resolve(results.data),
                 error: (err) => reject(err)
             });
         });
     }
 
-    // 과목 설명(메타데이터) 매핑 함수
-    function getMetadataInfo(subjectName) {
-        if(window.courseMetadataDb && window.courseMetadataDb[subjectName]) {
-            const meta = window.courseMetadataDb[subjectName];
-            return `<span class="course-info">📖 ${meta['설명']} | 📊 평가: <b>${meta['성적산출방식']}</b></span>`;
-        }
-        return '';
-    }
-
-    // 2. 표 그리기 (렌더링)
-    function renderSimulator() {
-        const designatedTbody = document.getElementById('designated-tbody');
-        const selectionContainer = document.getElementById('selection-container');
+    // 트랙별 데이터 로드 및 초기화
+    async function loadTrackData(track) {
+        document.getElementById('tab-simulator').innerHTML = `<div style="grid-column: span 6; padding: 100px; text-align: center; color: #666;">데이터를 불러오는 중입니다...</div>`;
         
-        designatedTbody.innerHTML = '';
-        selectionContainer.innerHTML = '';
+        const coursesFile = track === 'general' ? 'chungju_general_courses.csv' : 'chungju_music_courses.csv';
+        const groupsFile = track === 'general' ? 'chungju_general_groups.csv' : 'chungju_music_groups.csv';
 
-        // [학교 지정 과목 그리기]
-        const designatedCourses = coursesData.filter(c => c['학교지정'] === 'True');
-        designatedCourses.forEach(c => {
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td><span class="badge">${c['교과군']}</span></td>
-                <td><span class="badge badge-type">${c['과목유형'] || '일반'}</span></td>
-                <td>
-                    <strong style="font-size: 15px;">${c['과목명']}</strong>
-                    ${getMetadataInfo(c['과목명'])}
-                </td>
-                <td style="text-align:center; font-weight:600;">${c['편성학점']}</td>
-            `;
-            designatedTbody.appendChild(tr);
-        });
-
-        // [학생 선택 과목 그리기]
-        const selectionCourses = coursesData.filter(c => c['학년선택'] === 'True');
-        
-        groupsData.forEach(group => {
-            const groupCode = group['선택군_코드'];
-            const groupTargetCount = parseInt(group['선택군_선택수']) || 0;
-
-            const groupDiv = document.createElement('div');
-            groupDiv.style.marginBottom = '30px';
+        try {
+            const [courses, groups] = await Promise.all([
+                fetchCSV(coursesFile),
+                fetchCSV(groupsFile)
+            ]);
             
-            // 그룹 헤더 (택 N)
-            const groupTitle = document.createElement('div');
-            groupTitle.className = 'group-header';
-            groupTitle.style.padding = '14px 16px';
-            groupTitle.innerHTML = `
-                📌 [${group['선택군_학년학기']}] 학생 선택군 - ${group['선택군_원문']} 
-                <span class="credit-status" id="status-${groupCode}">0 / ${groupTargetCount} 과목 선택됨</span>
-            `;
-            groupDiv.appendChild(groupTitle);
+            rawData = courses;
+            groupsData = groups;
 
-            // 해당 그룹 과목 테이블
-            const table = document.createElement('table');
-            const tbody = document.createElement('tbody');
-            
-            const groupCourses = selectionCourses.filter(c => c['선택군_코드'] === groupCode);
-            groupCourses.forEach(c => {
-                const tr = document.createElement('tr');
-                const credit = parseInt(c['편성학점']) || 0;
-                
-                tr.innerHTML = `
-                    <td style="width: 5%; text-align: center;">
-                        <input type="checkbox" class="course-checkbox" 
-                            id="chk_${c['과목명']}"
-                            data-group="${groupCode}" 
-                            data-credit="${credit}" 
-                            data-max="${groupTargetCount}"
-                            onchange="updateCredits(this)">
-                    </td>
-                    <td style="width: 15%;">
-                        <span class="badge">${c['교과군']}</span><br>
-                        <span class="badge badge-type" style="margin-top:5px;">${c['과목유형'] || '일반'}</span>
-                    </td>
-                    <td style="width: 80%;">
-                        <label class="course-label" for="chk_${c['과목명']}">
-                            <div><strong style="font-size: 15.5px;">${c['과목명']}</strong> <span style="color:var(--primary); font-size:13px; margin-left:4px;">(${credit}학점)</span></div>
-                            ${getMetadataInfo(c['과목명'])}
-                        </label>
-                    </td>
-                `;
-                tbody.appendChild(tr);
+            // 과목 데이터에 그룹 데이터(선택수, 원문 등) 병합
+            rawData.forEach(row => {
+                if(row['선택군_코드']) {
+                    const groupInfo = groupsData.find(g => g['선택군_코드'] === row['선택군_코드']);
+                    if(groupInfo) {
+                        row['선택군_선택수'] = groupInfo['선택군_선택수'];
+                        row['선택군_원문'] = groupInfo['선택군_원문'];
+                    }
+                }
             });
+
+            selectedCourses.clear();
+            renderSimulator();
+            initAdmissionSearch();
+            setTimeout(drawPaths, 150);
+        } catch (e) {
+            document.getElementById('tab-simulator').innerHTML = `<div style="grid-column: span 6; padding: 100px; text-align: center; color: red;">데이터 로딩 실패! 깃허브에 CSV 파일이 모두 업로드 되었는지 확인하세요.</div>`;
+        }
+    }
+
+    function switchTab(tab) {
+        document.getElementById('simWrapper').classList.toggle('hidden', tab !== 'simulator');
+        document.getElementById('tab-full').classList.toggle('hidden', tab !== 'full');
+        document.getElementById('tab-admission').classList.toggle('hidden', tab !== 'admission');
+        document.querySelectorAll('.main-tab-btn').forEach(btn => btn.classList.toggle('active', btn.getAttribute('onclick').includes(tab)));
+        if (tab === 'full') renderFullView();
+        else if (tab === 'admission') initAdmissionSearch();
+        else setTimeout(drawPaths, 100);
+    }
+
+    function renderSimulator() {
+        const container = document.getElementById('tab-simulator'); container.innerHTML = '';
+        semesters.forEach(sem => {
+            const col = document.createElement('div'); col.className = 'semester-panel';
+            const [grade, term] = sem.split("-");
+            col.innerHTML = `<div class="semester-header ${term === '1' ? 'sem-header-1' : 'sem-header-2'}" id="header-${sem}"><span>${grade}학년 ${term}학기</span><span class="semester-complete-badge">완료</span></div>
+                             <div class="semester-content" id="content-${sem}" onscroll="drawPaths(event)"></div>`;
+            container.appendChild(col);
+            const content = col.querySelector('.semester-content');
             
-            table.appendChild(tbody);
-            groupDiv.appendChild(table);
-            selectionContainer.appendChild(groupDiv);
-        });
+            // 해당 학기에 운영학점이 있는 과목 필터링
+            const semData = rawData.filter(r => r[`${sem}_학점`] && parseInt(r[`${sem}_학점`]) > 0);
+            
+            // 1. 공통 필수(학교지정) 과목
+            const mandatory = semData.filter(r => r['학교지정'] === 'True');
+            if (mandatory.length > 0) {
+                const sep = document.createElement('div'); sep.className = 'group-separator'; sep.innerText = '학교 지정 필수'; content.appendChild(sep);
+                mandatory.forEach(r => content.appendChild(createSimItem(r, true, sem)));
+            }
 
-        updateTotalSummary(); // 초기 학점 0 세팅
+            // 2. 학생 선택 과목 (선택군 별로 그룹핑)
+            const choices = semData.filter(r => r['학교지정'] !== 'True');
+            const groups = {};
+            choices.forEach(r => { 
+                const gid = r['선택군_코드'] || r['과목유형'] || '기타'; 
+                if (!groups[gid]) groups[gid] = []; 
+                groups[gid].push(r); 
+            });
+
+            Object.keys(groups).sort().forEach(groupKey => {
+                const groupItems = groups[groupKey];
+                const firstItem = groupItems[0];
+                const limit = parseInt(firstItem['선택군_선택수'] || '1');
+                const displayName = firstItem['선택군_원문'] || firstItem['선택군_코드'] || groupKey;
+                
+                const sep = document.createElement('div'); sep.className = 'group-separator'; 
+                if (firstItem['선택군_코드']) {
+                    sep.dataset.group = `${sem}_${groupKey}`;
+                    sep.dataset.limit = limit;
+                }
+                sep.innerHTML = `<span>${displayName}</span> ${firstItem['선택군_코드'] ? `<span class="group-status">${limit}과목 선택</span>` : ''}`;
+                content.appendChild(sep); 
+                
+                groupItems.forEach(r => content.appendChild(createSimItem(r, false, sem, firstItem['선택군_코드'] ? groupKey : null)));
+            });
+        });
+        updateSummary(); updateGroupCompletion(); setTimeout(() => { drawPaths(); updateScrollMasks(); }, 200);
     }
 
-    // 3. 체크박스 클릭 시 학점 계산 로직
-    function updateCredits(checkbox) {
-        const groupCode = checkbox.getAttribute('data-group');
-        const maxSelect = parseInt(checkbox.getAttribute('data-max'));
-        
-        // 같은 그룹(선택군) 안에서 체크된 항목들 가져오기
-        const groupCheckboxes = document.querySelectorAll(`.course-checkbox[data-group="${groupCode}"]`);
-        const checkedBoxes = Array.from(groupCheckboxes).filter(cb => cb.checked);
-        
-        // 선택 초과 방지
-        if (checkedBoxes.length > maxSelect) {
-            alert(`선생님! 이 선택군에서는 최대 ${maxSelect}과목까지만 선택할 수 있습니다.`);
-            checkbox.checked = false;
-            return;
-        }
+    function updateScrollMasks() {
+        document.querySelectorAll('.semester-content').forEach(content => {
+            const panel = content.closest('.semester-panel');
+            const isBottom = content.scrollHeight - content.scrollTop <= content.clientHeight + 10;
+            panel.classList.toggle('scrolled-to-bottom', isBottom);
+        });
+    }
 
-        // 선택 상태 텍스트 업데이트 (예: 2 / 5 과목 선택됨)
-        let currentSelectedCount = checkedBoxes.length;
-        const statusSpan = document.getElementById(`status-${groupCode}`);
-        statusSpan.innerHTML = `${currentSelectedCount} / ${maxSelect} 과목 선택됨`;
+    function createSimItem(row, isMandatory, sem, groupId = null) {
+        const item = document.createElement('div');
+        const courseName = row['과목명'];
+        const rowId = `${sem}_${courseName}`;
+        const cat = getCourseCategory(row);
+        const originalCat = row['교과군'];
+        const credits = row[`${sem}_학점`];
+        const type = row['과목유형'] || '일반';
+        const extraInfo = row['비고_전문_고시외_표6'] || '';
         
-        if(currentSelectedCount === maxSelect) {
-            statusSpan.classList.add('status-ok');
-            statusSpan.innerHTML += ' ✅ (조건 충족)';
+        item.className = `course-item ${isMandatory ? 'mandatory' : 'choice'}`; 
+        item.dataset.cat = cat; 
+        item.dataset.pathCats = getPathCategories(row).join('|'); 
+        item.dataset.sem = sem;
+        
+        if (groupId) item.dataset.group = `${sem}_${groupId}`;
+        item.id = `item_${rowId.replace(/\s/g, '_')}`;
+        
+        const extraTag = extraInfo ? `<span class="tag extra-info"><span class="material-icons-round">add_circle</span>${extraInfo}</span>` : '';
+        item.innerHTML = `<div class="item-row"><span class="material-icons-round check-box">${isMandatory ? 'check_box' : 'check_box_outline_blank'}</span><span class="course-name">${courseName} <span style="color:var(--md-sys-color-primary);font-size:0.65rem;">(${credits})</span></span></div>
+                          <div class="badges-row"><span class="tag" style="background-color:${getCourseCategoryColor(row)}">${cat}</span><span class="tag" style="background-color:#64748b; font-size:0.55rem;">${type}</span>${extraTag}</div>`;
+
+        item.onmouseover = (e) => {
+            const currentGroup = item.dataset.group, currentCat = item.dataset.cat, color = getCategoryColor(currentCat);
+            document.querySelectorAll('.course-item').forEach(el => {
+                if (currentGroup && el.dataset.group === currentGroup) el.classList.add('group-hover');
+                if (currentCat && el.dataset.cat === currentCat) { el.classList.add('cat-hover'); el.style.backgroundColor = `color-mix(in srgb, ${color}, white 90%)`; }
+            });
+            const tooltip = document.getElementById('courseTooltip'), meta = getCourseMeta(row, cat);
+            tooltip.innerHTML = `<div class="tooltip-title">${courseName}</div>
+                                 <div class="tooltip-row"><span class="tooltip-label">학점</span><span class="tooltip-value">${credits}학점</span></div>
+                                 <div class="tooltip-row"><span class="tooltip-label">과목유형</span><span class="tooltip-value">${type}</span></div>
+                                 ${extraInfo ? `<div class="tooltip-row"><span class="tooltip-label">추가정보</span><span class="tooltip-value">${extraInfo}</span></div>` : ''}
+                                 <div class="tooltip-row"><span class="tooltip-label">성적산출</span><span class="tooltip-value" style="font-weight:bold; color:var(--md-sys-color-primary);">${meta.성적산출방식}</span></div>
+                                 <div class="tooltip-desc">${meta.설명}</div>`;
+            tooltip.style.display = 'flex'; updateTooltipPos(e);
+        };
+        item.onmousemove = (e) => updateTooltipPos(e);
+        item.onmouseout = () => {
+            document.querySelectorAll('.course-item').forEach(el => { el.classList.remove('group-hover', 'cat-hover'); el.style.backgroundColor = ''; });
+            document.getElementById('courseTooltip').style.display = 'none';
+        };
+        if (!isMandatory) item.onclick = () => toggleSelection(item, row, sem, groupId);
+        return item;
+    }
+
+    function updateTooltipPos(e) {
+        const tooltip = document.getElementById('courseTooltip'); let x = e.clientX + 20, y = e.clientY + 20;
+        if (x + 300 > window.innerWidth) x = e.clientX - 300; if (y + 250 > window.innerHeight) y = e.clientY - 250;
+        tooltip.style.left = `${x}px`; tooltip.style.top = `${y}px`;
+    }
+
+    function toggleSelection(el, row, sem, groupId) {
+        const rowId = `${sem}_${row['과목명']}`;
+        if (selectedCourses.has(rowId)) {
+            selectedCourses.delete(rowId); el.classList.remove('selected'); el.querySelector('.check-box').innerText = 'check_box_outline_blank';
         } else {
-            statusSpan.classList.remove('status-ok');
+            const limit = parseInt(row['선택군_선택수'] || '1');
+            const selected = Array.from(selectedCourses).filter(id => {
+                const [s, n] = id.split("_"); const r = rawData.find(d => d['과목명'] === n && d[`${s}_학점`]);
+                return s === sem && r && (r['선택군_코드'] || '') === groupId;
+            }).length;
+            
+            if (selected >= limit && limit === 1 && groupId) {
+                Array.from(selectedCourses).forEach(id => {
+                    if (id.startsWith(sem)) {
+                        const [s, n] = id.split("_"); const r = rawData.find(d => d['과목명'] === n && d[`${s}_학점`]);
+                        if (r && (r['선택군_코드'] || '') === groupId) {
+                            selectedCourses.delete(id); const other = document.getElementById(`item_${id.replace(/\s/g, '_')}`);
+                            if (other) { other.classList.remove('selected'); other.querySelector('.check-box').innerText = 'check_box_outline_blank'; }
+                        }
+                    }
+                });
+            } else if (selected >= limit && groupId) { alert(`이 선택군에서는 최대 ${limit}과목까지만 선택 가능합니다.`); return; }
+            
+            selectedCourses.add(rowId); el.classList.add('selected'); el.querySelector('.check-box').innerText = 'check_box';
         }
-
-        updateTotalSummary();
+        updateSummary(); updateGroupCompletion(); drawPaths(); renderAdmissionSelectedChips(); renderAdmissionTable();
     }
 
-    // 총 선택 학점 계산기
-    function updateTotalSummary() {
-        const allChecked = document.querySelectorAll('.course-checkbox:checked');
-        let total = 0;
-        allChecked.forEach(cb => {
-            total += parseInt(cb.getAttribute('data-credit'));
+    function updateGroupCompletion() {
+        document.querySelectorAll('.course-item.group-complete').forEach(item => item.classList.remove('group-complete'));
+        const semesterState = {};
+        semesters.forEach(sem => { semesterState[sem] = { total: 0, complete: 0 }; });
+
+        document.querySelectorAll('.group-separator[data-group]').forEach(separator => {
+            const groupKey = separator.dataset.group;
+            const sem = groupKey.split("_")[0];
+            const limit = parseInt(separator.dataset.limit || '1');
+            const groupItems = Array.from(document.querySelectorAll(`.course-item[data-group="${CSS.escape(groupKey)}"]`));
+            const selectedCount = groupItems.filter(item => item.classList.contains('selected')).length;
+            const complete = selectedCount === limit;
+            const status = separator.querySelector('.group-status');
+
+            if (semesterState[sem]) {
+                semesterState[sem].total += 1;
+                if (complete) semesterState[sem].complete += 1;
+            }
+
+            separator.classList.toggle('group-complete', complete);
+            if (status) status.textContent = complete ? '✅ 선택 완료' : `${selectedCount} / ${limit} 과목 선택됨`;
+            if (complete) groupItems.forEach(item => item.classList.add('group-complete'));
         });
-        document.getElementById('total-credits').innerText = total;
+
+        semesters.forEach(sem => {
+            const header = document.getElementById(`header-${sem}`);
+            const state = semesterState[sem];
+            const complete = state.total > 0 && state.total === state.complete;
+            if (header) header.classList.toggle('sem-complete', complete);
+        });
     }
 
-    // 브라우저 켜지면 무조건 실행
-    window.onload = loadData;
+    function updateSummary() {
+        let total = 0, mand = 0;
+        rawData.forEach(r => { if (r['학교지정'] === 'True') semesters.forEach(s => { const cr = parseInt(r[`${s}_학점`] || '0'); if (cr > 0) { total += cr; mand += cr; } }); });
+        selectedCourses.forEach(id => { const [s, n] = id.split("_"); const r = rawData.find(d => d['과목명'] === n && d[`${s}_학점`]); if (r) total += parseInt(r[`${s}_학점`] || '0'); });
+        total += creativeActivityCredits;
+        
+        document.getElementById('totalSelected').innerText = selectedCourses.size;
+        document.getElementById('totalMandatoryCredits').innerText = `${mand + creativeActivityCredits}`;
+        document.getElementById('totalCredits').innerText = `${total} / ${graduationCredits}`;
+    }
+
+    async function copySelectedCourses() {
+        const grouped = {};
+        selectedCourses.forEach(id => {
+            const [sem, courseName] = id.split("_");
+            const row = rawData.find(d => d['과목명'] === courseName && d[`${sem}_학점`]);
+            if (!row || row['학교지정'] === 'True') return;
+
+            const label = row['선택군_원문'] || '선택';
+            if (!grouped[sem]) grouped[sem] = {};
+            if (!grouped[sem][label]) grouped[sem][label] = [];
+            grouped[sem][label].push(courseName);
+        });
+
+        const lines = [`[충주예성여고 - ${document.getElementById('trackSelect').options[document.getElementById('trackSelect').selectedIndex].text}]`];
+        semesters.forEach(sem => {
+            if (!grouped[sem]) return;
+            lines.push(`- ${sem.split('-')[0]}학년 ${sem.split('-')[1]}학기`);
+            Object.keys(grouped[sem]).sort().forEach(label => {
+                lines.push(`  - ${label}: ${grouped[sem][label].join(', ')}`);
+            });
+        });
+
+        const text = lines.length > 1 ? lines.join('\n') : '선택한 과목이 없습니다.';
+        const button = document.getElementById('copySelectionBtn');
+        const original = button.innerHTML;
+
+        try { await navigator.clipboard.writeText(text); button.innerHTML = '<span class="material-icons-round">check</span>복사됨'; } 
+        catch (e) { alert("복사 실패!"); }
+        setTimeout(() => { button.innerHTML = original; }, 1500);
+    }
+
+    function drawPaths(e) {
+        if (e && e.target) updateScrollMasks();
+        const svg = document.getElementById('svgOverlay'); svg.innerHTML = ''; const svgRect = svg.getBoundingClientRect();
+        const catGroups = {};
+        document.querySelectorAll('.course-item').forEach(el => {
+            const pathCats = (el.dataset.pathCats || el.dataset.cat || '').split('|').filter(Boolean);
+            pathCats.forEach(cat => {
+                if (!catGroups[cat]) catGroups[cat] = {};
+                const sem = el.dataset.sem; if (!catGroups[cat][sem]) catGroups[cat][sem] = [];
+                catGroups[cat][sem].push(el);
+            });
+        });
+        Object.keys(catGroups).forEach(cat => {
+            const semData = catGroups[cat], sortedSems = Object.keys(semData).sort((a, b) => semesters.indexOf(a) - semesters.indexOf(b));
+            for (let i = 0; i < sortedSems.length - 1; i++) {
+                const currentSemItems = semData[sortedSems[i]], nextSemItems = semData[sortedSems[i+1]];
+                currentSemItems.forEach(from => {
+                    nextSemItems.forEach(to => {
+                        const fromActive = from.classList.contains('selected') || from.classList.contains('mandatory'), toActive = to.classList.contains('selected') || to.classList.contains('mandatory');
+                        if (!fromActive || !toActive) return;
+                        const isSelectedPath = from.classList.contains('selected') && to.classList.contains('selected'), fromRect = from.getBoundingClientRect(), toRect = to.getBoundingClientRect();
+                        const fromParent = from.closest('.semester-content').getBoundingClientRect(), toParent = to.closest('.semester-content').getBoundingClientRect();
+                        const isVis = fromRect.bottom > fromParent.top && fromRect.top < fromParent.bottom && toRect.bottom > toParent.top && toRect.top < toParent.bottom;
+                        if (!isVis) return;
+                        const x1 = fromRect.right - svgRect.left, y1 = (fromRect.top + fromRect.bottom)/2 - svgRect.top, x2 = toRect.left - svgRect.left, y2 = (toRect.top + toRect.bottom)/2 - svgRect.top;
+                        const path = document.createElementNS("http://www.w3.org/2000/svg", "path"), cp = x1 + (x2 - x1)/2;
+                        path.setAttribute("d", `M ${x1} ${y1} C ${cp} ${y1}, ${cp} ${y2}, ${x2} ${y2}`); path.setAttribute("class", "path-arrow");
+                        path.dataset.cat = cat; path.style.stroke = getCategoryColor(cat);
+                        if (isSelectedPath) path.classList.add('selected-path'); else path.classList.add('active');
+                        svg.appendChild(path);
+                    });
+                });
+            }
+        });
+    }
+
+    function renderFullView() {
+        const container = document.getElementById('fullViewContent');
+        const semesterHeaders = semesters.map(sem => `<th class="center">${sem}</th>`).join('');
+        const rows = rawData.map(row => {
+            const extraInfo = row['비고_전문_고시외_표6'] || '';
+            const selection = row['선택군_원문'] || (row['학교지정'] === 'True' ? '학교지정' : '');
+            const semesterCells = semesters.map(sem => {
+                const credit = row[`${sem}_학점`] || '';
+                return `<td class="center ${credit ? '' : 'muted'}">${credit || '-'}</td>`;
+            }).join('');
+            return `<tr><td class="course-title">${row['과목명']}</td><td>${row['교과군']}</td><td>${row['과목유형'] || '일반'}</td><td>${extraInfo}</td><td>${selection}</td>${semesterCells}<td class="center">${row['편성학점']}</td></tr>`;
+        }).join('');
+        container.innerHTML = `<table class="full-data-table"><thead><tr><th>과목명</th><th>교과군</th><th>유형</th><th>추가정보</th><th>선택/지정</th>${semesterHeaders}<th class="center">학점</th></tr></thead><tbody>${rows}</tbody></table>`;
+    }
+
+    // 대입 권장 과목 연동 로직 (원형 유지)
+    function initAdmissionSearch() {
+        if (!window.admissionRecommendations) return;
+        const tableBody = document.getElementById('admissionTableBody');
+        if (!admissionInitialized) {
+            document.getElementById('admissionLoadSelectedBtn').addEventListener('click', () => {
+                const selectedNames = Array.from(new Set(Array.from(selectedCourses).map(id => id.split('_')[1])));
+                document.getElementById('admissionSubjectSearch').value = selectedNames.join(', ');
+                renderAdmissionTable();
+            });
+            document.getElementById('admissionDeptSearch').addEventListener('input', renderAdmissionTable);
+            document.getElementById('admissionSubjectSearch').addEventListener('input', renderAdmissionTable);
+            admissionInitialized = true;
+        }
+        renderAdmissionTable();
+    }
+    
+    function renderAdmissionTable() {
+        if(!window.admissionRecommendations) return;
+        const deptQuery = document.getElementById('admissionDeptSearch').value.toLowerCase().trim();
+        const subjQuery = document.getElementById('admissionSubjectSearch').value.toLowerCase().trim();
+        const terms = subjQuery.split(',').map(t => t.trim()).filter(Boolean);
+        
+        const filtered = window.admissionRecommendations.filter(row => {
+            if (deptQuery && !row.dept.toLowerCase().includes(deptQuery)) return false;
+            if (terms.length) {
+                const subjText = `${row.core || ''} ${row.rec || ''}`.toLowerCase().replace(/\s/g,'');
+                if (!terms.some(t => subjText.includes(t.replace(/\s/g,'')))) return false;
+            }
+            return true;
+        });
+
+        const tbody = document.getElementById('admissionTableBody');
+        if(!filtered.length) { tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding:30px; color:#666;">검색 결과가 없습니다.</td></tr>`; return; }
+        
+        tbody.innerHTML = filtered.map(row => `<tr>
+            <td><strong>${row.uni}</strong></td>
+            <td>${row.dept}</td>
+            <td>${row.core && row.core !== '-' ? `<span class="admission-chip">핵</span>${row.core}` : ''}</td>
+            <td>${row.rec && row.rec !== '-' ? `<span class="admission-chip" style="background:#dbeafe; color:#1d4ed8; border-color:#bfdbfe">권</span>${row.rec}` : ''}</td>
+            <td>${row.note || ''}</td>
+        </tr>`).join('');
+        document.getElementById('admissionCountInfo').innerHTML = `검색 결과: <strong>${filtered.length}</strong>건`;
+    }
+
+    // 앱 초기 실행
+    window.addEventListener('DOMContentLoaded', () => {
+        loadTrackData('general');
+        window.addEventListener('resize', () => drawPaths());
+    });
 </script>
 </body>
 </html>
