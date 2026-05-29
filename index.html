@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>충주예성여고 2026 선택과목 시뮬레이터</title>
+    <title>충주예성여고 2025 선택과목 시뮬레이터</title>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
@@ -634,10 +634,11 @@
             }
 
             // 2. 학생 선택 과목 (선택군 별로 그룹핑)
+            // ★ 학기별 선택 갯수 완벽 분리 로직 적용 ★
             const choices = semData.filter(r => r['학교지정'] !== 'True');
             const groups = {};
             choices.forEach(r => { 
-                const gid = r['선택군_코드'] || r['과목유형'] || '기타'; 
+                const gid = r[`${sem}_선택군_코드`] || r['선택군_코드'] || r['과목유형'] || '기타'; 
                 if (!groups[gid]) groups[gid] = []; 
                 groups[gid].push(r); 
             });
@@ -645,18 +646,21 @@
             Object.keys(groups).sort().forEach(groupKey => {
                 const groupItems = groups[groupKey];
                 const firstItem = groupItems[0];
-                const limit = parseInt(firstItem['선택군_선택수'] || '1');
-                const displayName = firstItem['선택군_원문'] || firstItem['선택군_코드'] || groupKey;
+                
+                // 그룹 정보(선택수)를 groupsData 배열에서 정확히 매칭해서 가져옴
+                const matchedGroupInfo = groupsData.find(g => g['선택군_코드'] === groupKey);
+                const limit = matchedGroupInfo ? parseInt(matchedGroupInfo['선택군_선택수']) : parseInt(firstItem['선택군_선택수'] || '1');
+                const displayName = matchedGroupInfo ? matchedGroupInfo['선택군_원문'] : (firstItem['선택군_원문'] || firstItem['선택군_코드'] || groupKey);
                 
                 const sep = document.createElement('div'); sep.className = 'group-separator'; 
-                if (firstItem['선택군_코드']) {
+                if (firstItem['선택군_코드'] || matchedGroupInfo) {
                     sep.dataset.group = `${sem}_${groupKey}`;
                     sep.dataset.limit = limit;
                 }
-                sep.innerHTML = `<span>${displayName}</span> ${firstItem['선택군_코드'] ? `<span class="group-status">${limit}과목 선택</span>` : ''}`;
+                sep.innerHTML = `<span>${displayName}</span> ${(firstItem['선택군_코드'] || matchedGroupInfo) ? `<span class="group-status">${limit}과목 선택</span>` : ''}`;
                 content.appendChild(sep); 
                 
-                groupItems.forEach(r => content.appendChild(createSimItem(r, false, sem, firstItem['선택군_코드'] ? groupKey : null)));
+                groupItems.forEach(r => content.appendChild(createSimItem(r, false, sem, groupKey)));
             });
         });
         updateSummary(); updateGroupCompletion(); setTimeout(() => { drawPaths(); updateScrollMasks(); }, 200);
@@ -727,23 +731,30 @@
         if (selectedCourses.has(rowId)) {
             selectedCourses.delete(rowId); el.classList.remove('selected'); el.querySelector('.check-box').innerText = 'check_box_outline_blank';
         } else {
-            const limit = parseInt(row['선택군_선택수'] || '1');
+            // 해당 선택군의 정확한 제한 갯수를 찾아옵니다.
+            const matchedGroupInfo = groupsData.find(g => g['선택군_코드'] === groupId);
+            const limit = matchedGroupInfo ? parseInt(matchedGroupInfo['선택군_선택수']) : parseInt(row['선택군_선택수'] || '1');
+            
             const selected = Array.from(selectedCourses).filter(id => {
                 const [s, n] = id.split("_"); const r = rawData.find(d => d['과목명'] === n && d[`${s}_학점`]);
-                return s === sem && r && (r['선택군_코드'] || '') === groupId;
+                const rGroupId = r ? (r[`${s}_선택군_코드`] || r['선택군_코드']) : '';
+                return s === sem && rGroupId === groupId;
             }).length;
             
             if (selected >= limit && limit === 1 && groupId) {
                 Array.from(selectedCourses).forEach(id => {
                     if (id.startsWith(sem)) {
                         const [s, n] = id.split("_"); const r = rawData.find(d => d['과목명'] === n && d[`${s}_학점`]);
-                        if (r && (r['선택군_코드'] || '') === groupId) {
+                        const rGroupId = r ? (r[`${s}_선택군_코드`] || r['선택군_코드']) : '';
+                        if (rGroupId === groupId) {
                             selectedCourses.delete(id); const other = document.getElementById(`item_${id.replace(/\s/g, '_')}`);
                             if (other) { other.classList.remove('selected'); other.querySelector('.check-box').innerText = 'check_box_outline_blank'; }
                         }
                     }
                 });
-            } else if (selected >= limit && groupId) { alert(`이 선택군에서는 최대 ${limit}과목까지만 선택 가능합니다.`); return; }
+            } else if (selected >= limit && groupId) { 
+                alert(`이 선택군에서는 최대 ${limit}과목까지만 선택 가능합니다.`); return; 
+            }
             
             selectedCourses.add(rowId); el.classList.add('selected'); el.querySelector('.check-box').innerText = 'check_box';
         }
@@ -800,7 +811,10 @@
             const row = rawData.find(d => d['과목명'] === courseName && d[`${sem}_학점`]);
             if (!row || row['학교지정'] === 'True') return;
 
-            const label = row['선택군_원문'] || '선택';
+            const groupId = row[`${sem}_선택군_코드`] || row['선택군_코드'];
+            const matchedGroupInfo = groupsData.find(g => g['선택군_코드'] === groupId);
+            const label = matchedGroupInfo ? matchedGroupInfo['선택군_원문'] : '선택';
+            
             if (!grouped[sem]) grouped[sem] = {};
             if (!grouped[sem][label]) grouped[sem][label] = [];
             grouped[sem][label].push(courseName);
@@ -875,7 +889,7 @@
         container.innerHTML = `<table class="full-data-table"><thead><tr><th>과목명</th><th>교과군</th><th>유형</th><th>추가정보</th><th>선택/지정</th>${semesterHeaders}<th class="center">학점</th></tr></thead><tbody>${rows}</tbody></table>`;
     }
 
-    // 대입 권장 과목 연동 로직 (원형 유지)
+    // 대입 권장 과목 연동 로직
     function initAdmissionSearch() {
         if (!window.admissionRecommendations) return;
         const tableBody = document.getElementById('admissionTableBody');
