@@ -20,26 +20,28 @@
             --semester-1-color: #8a1c3e;
             --semester-2-color: #5c1229;
 
-            /* Category Colors */
-            --cat-국어: #f472b6;
-            --cat-수학: #f59e0b;
-            --cat-영어: #10b981;
-            --cat-사회: #3b82f6;
-            --cat-일반사회: #3b82f6;
-            --cat-역사: #2563eb;
-            --cat-지리: #06b6d4;
-            --cat-윤리: #14b8a6;
-            --cat-과학: #8b5cf6;
-            --cat-물리: #7c3aed;
-            --cat-화학: #a855f7;
-            --cat-생명: #22c55e;
-            --cat-지구과학: #0ea5e9;
-            --cat-체육: #6366f1;
-            --cat-예술: #ec4899;
-            --cat-생활: #d2a679;
-            --cat-음악: #f472b6;
-            --cat-미술: #c084fc;
-            --cat-default: #94a3b8;
+            /* Category Colors - 뚜렷하게 구별되도록 채도와 색상 조정 */
+            --cat-국어: #ef4444;      /* Red */
+            --cat-수학: #3b82f6;      /* Blue */
+            --cat-영어: #f59e0b;      /* Amber */
+            --cat-사회: #10b981;      /* Emerald */
+            --cat-일반사회: #10b981;
+            --cat-역사: #059669;      /* Dark Green */
+            --cat-지리: #0ea5e9;      /* Sky Blue */
+            --cat-윤리: #14b8a6;      /* Teal */
+            --cat-과학: #8b5cf6;      /* Violet */
+            --cat-물리: #7c3aed;      /* Purple */
+            --cat-화학: #9333ea;      /* Fuchsia */
+            --cat-생명: #22c55e;      /* Green */
+            --cat-지구과학: #0284c7;   /* Light Blue */
+            --cat-체육: #6366f1;      /* Indigo */
+            --cat-예술: #ec4899;      /* Pink */
+            --cat-음악: #f472b6;      /* Light Pink */
+            --cat-미술: #d946ef;      /* Magenta */
+            --cat-생활: #84cc16;      /* Lime */
+            --cat-제2외국어: #f43f5e; /* Rose */
+            --cat-교양: #64748b;      /* Slate */
+            --cat-default: #94a3b8;   /* Gray (Fallback) */
         }
 
         body {
@@ -350,7 +352,7 @@
             position: sticky; top: 0; z-index: 1; background: #f1f5f9; color: #334155; font-weight: 700;
         }
 
-        /* 기타 대입 권장과목 스타일 (기존 유지) */
+        /* 기타 대입 권장과목 스타일 */
         .admission-container {
             flex: 1; overflow: hidden; padding: 14px 18px; box-sizing: border-box;
             background: #f1f3f6; display: flex; flex-direction: column; gap: 10px;
@@ -485,7 +487,7 @@
     let admissionCurrentFiltered = [];
     let admissionHideTimer = null;
 
-    // 카테고리별 색상 매핑
+    // 카테고리 매핑 및 색상 지정 로직
     function getCategoryColor(cat) {
         if (cat === '음악') return 'var(--cat-음악)';
         if (cat === '미술') return 'var(--cat-미술)';
@@ -504,22 +506,31 @@
         if (cat.includes('과학')) return 'var(--cat-과학)';
         if (cat.includes('체육')) return 'var(--cat-체육)';
         if (cat.includes('예술')) return 'var(--cat-예술)';
+        if (cat.includes('제2외국어') || cat.includes('한문')) return 'var(--cat-제2외국어)';
+        if (cat.includes('교양') || cat.includes('보건')) return 'var(--cat-교양)';
         if (cat.includes('기술') || cat.includes('가정') || cat.includes('정보') || cat.includes('생활')) return 'var(--cat-생활)';
         return 'var(--cat-default)';
     }
 
     function getCourseCategory(row) {
         const subject = row['과목명'] || '';
-        const cat = row['교과군'] || '';
+        let cat = row['교과군'] || '';
+        
+        // 원본 데이터가 '기초', '탐구' 등으로 되어 있어도 이름에 따라 강제 매핑하여 뚜렷한 색상이 나오도록 수정
+        if (subject.includes('국어') || subject.includes('화법') || subject.includes('독서') || subject.includes('언어') || subject.includes('문학') || subject.includes('매체')) cat = '국어';
+        if (subject.includes('수학') || subject.includes('미적분') || subject.includes('확률') || subject.includes('기하') || subject.includes('대수') || subject.includes('통계')) cat = '수학';
+        if (subject.includes('영어')) cat = '영어';
+        
         if (cat.includes('예술')) {
-            if (subject.includes('음악') || subject.includes('합창') || subject.includes('시창')) return '음악';
+            if (subject.includes('음악') || subject.includes('합창') || subject.includes('합주') || subject.includes('시창')) return '음악';
             if (subject.includes('미술') || subject.includes('조형')) return '미술';
+            return '예술';
         }
         if (cat.includes('사회')) {
             if (subject.includes('통합사회')) return '사회';
             if (['한국사1', '한국사2', '세계사', '동아시아 역사 기행', '역사로 탐구하는 현대 세계'].includes(subject)) return '역사';
-            if (['세계시민과 지리', '한국지리 탐구', '도시의 미래 탐구', '기후변화와 지속가능한 세계'].includes(subject)) return '지리';
-            if (['현대사회와 윤리', '윤리와 사상', '인문학과 윤리', '윤리 문제 탐구'].includes(subject)) return '윤리';
+            if (['세계시민과 지리', '한국지리 탐구', '도시의 미래 탐구', '기후변화와 지속가능한 세계', '여행지리', '여행 지리'].includes(subject)) return '지리';
+            if (['현대사회와 윤리', '윤리와 사상', '인문학과 윤리', '윤리 문제 탐구', '윤리문제 탐구'].includes(subject)) return '윤리';
             return '일반사회';
         }
         if (cat.includes('과학')) {
@@ -528,7 +539,11 @@
             if (subject.includes('화학') || subject.includes('물질')) return '화학';
             if (subject.includes('생명') || subject.includes('생물') || subject.includes('세포')) return '생명';
             if (subject.includes('지구') || subject.includes('행성') || subject.includes('우주')) return '지구과학';
+            return '과학';
         }
+        if (cat.includes('제2외국어') || cat.includes('한문')) return '제2외국어/한문';
+        if (cat.includes('교양') || subject.includes('보건')) return '교양';
+        
         return cat;
     }
 
@@ -552,6 +567,41 @@
             "설명": dbMeta["설명"] || "2022 개정 교육과정 상세 설명이 없습니다.",
             "성적산출방식": dbMeta["성적산출방식"] || "평가 정보 확인 필요"
         };
+    }
+
+    // --- 정렬(Grouping)을 위한 가중치 함수 추가 ---
+    function getSortWeight(row) {
+        const cat = getCourseCategory(row) || '';
+        if (cat.includes('국어')) return 10;
+        if (cat.includes('수학')) return 20;
+        if (cat.includes('영어')) return 30;
+        if (cat.includes('한국사')) return 40;
+        if (cat.includes('역사')) return 41;
+        if (cat.includes('지리')) return 42;
+        if (cat.includes('일반사회')) return 43;
+        if (cat.includes('윤리')) return 44;
+        if (cat.includes('사회')) return 45;
+        if (cat.includes('물리')) return 51;
+        if (cat.includes('화학')) return 52;
+        if (cat.includes('생명')) return 53;
+        if (cat.includes('지구과학')) return 54;
+        if (cat.includes('과학')) return 55;
+        if (cat.includes('체육')) return 60;
+        if (cat.includes('음악')) return 71; // 음악이 미술보다 앞으로
+        if (cat.includes('미술')) return 72; // 그 다음이 미술
+        if (cat.includes('예술')) return 73;
+        if (cat.includes('기술') || cat.includes('가정') || cat.includes('정보') || cat.includes('생활')) return 80;
+        if (cat.includes('제2외국어') || cat.includes('한문')) return 90;
+        if (cat.includes('교양') || cat.includes('보건')) return 100;
+        return 999;
+    }
+
+    function sortCourses(a, b) {
+        const weightA = getSortWeight(a);
+        const weightB = getSortWeight(b);
+        if (weightA !== weightB) return weightA - weightB;
+        // 그룹이 같으면 과목명 기준 가나다 정렬
+        return (a['과목명'] || '').localeCompare(b['과목명'] || '');
     }
 
     // CSV 파일 동적 로드 함수
@@ -613,6 +663,19 @@
         else setTimeout(drawPaths, 100);
     }
 
+    // --- 학기 및 선택군 별로 동적인 제한(Limit)을 계산 ---
+    function getDynamicLimit(row, sem) {
+        let limit = parseInt(row['선택군_선택수'] || '1');
+        
+        // 3학년 선택 과목의 경우 1학기(택9)와 2학기(택8) 한도 다르게 부여
+        if (row['선택군_코드'] && row['선택군_코드'].includes('3학년 선택')) {
+            if (sem === '3-1') return 9;
+            if (sem === '3-2') return 8;
+        }
+        
+        return limit;
+    }
+
     function renderSimulator() {
         const container = document.getElementById('tab-simulator'); container.innerHTML = '';
         semesters.forEach(sem => {
@@ -629,6 +692,9 @@
             // 1. 공통 필수(학교지정) 과목
             const mandatory = semData.filter(r => r['학교지정'] === 'True');
             if (mandatory.length > 0) {
+                // 배열 순서(음악-음악-미술 등) 적용을 위해 정렬
+                mandatory.sort(sortCourses);
+                
                 const sep = document.createElement('div'); sep.className = 'group-separator'; sep.innerText = '학교 지정 필수'; content.appendChild(sep);
                 mandatory.forEach(r => content.appendChild(createSimItem(r, true, sem)));
             }
@@ -644,14 +710,18 @@
 
             Object.keys(groups).sort().forEach(groupKey => {
                 const groupItems = groups[groupKey];
+                
+                // 선택과목들도 배열 순서(계열별 정렬) 적용
+                groupItems.sort(sortCourses);
+                
                 const firstItem = groupItems[0];
-                const limit = parseInt(firstItem['선택군_선택수'] || '1');
+                const limit = getDynamicLimit(firstItem, sem);
                 const displayName = firstItem['선택군_원문'] || firstItem['선택군_코드'] || groupKey;
                 
                 const sep = document.createElement('div'); sep.className = 'group-separator'; 
                 if (firstItem['선택군_코드']) {
                     sep.dataset.group = `${sem}_${groupKey}`;
-                    sep.dataset.limit = limit;
+                    sep.dataset.limit = limit; // 여기서 요소의 데이터 속성에 올바른 한도 저장
                 }
                 sep.innerHTML = `<span>${displayName}</span> ${firstItem['선택군_코드'] ? `<span class="group-status">${limit}과목 선택</span>` : ''}`;
                 content.appendChild(sep); 
@@ -727,13 +797,16 @@
         if (selectedCourses.has(rowId)) {
             selectedCourses.delete(rowId); el.classList.remove('selected'); el.querySelector('.check-box').innerText = 'check_box_outline_blank';
         } else {
-            const limit = parseInt(row['선택군_선택수'] || '1');
+            // 동적 한도 계산 
+            const limit = getDynamicLimit(row, sem);
+            
             const selected = Array.from(selectedCourses).filter(id => {
                 const [s, n] = id.split("_"); const r = rawData.find(d => d['과목명'] === n && d[`${s}_학점`]);
                 return s === sem && r && (r['선택군_코드'] || '') === groupId;
             }).length;
             
             if (selected >= limit && limit === 1 && groupId) {
+                // 단일 선택군(택1)의 경우 기존 선택 자동 취소
                 Array.from(selectedCourses).forEach(id => {
                     if (id.startsWith(sem)) {
                         const [s, n] = id.split("_"); const r = rawData.find(d => d['과목명'] === n && d[`${s}_학점`]);
@@ -743,7 +816,10 @@
                         }
                     }
                 });
-            } else if (selected >= limit && groupId) { alert(`이 선택군에서는 최대 ${limit}과목까지만 선택 가능합니다.`); return; }
+            } else if (selected >= limit && groupId) { 
+                alert(`이 선택군에서는 최대 ${limit}과목까지만 선택 가능합니다.`); 
+                return; 
+            }
             
             selectedCourses.add(rowId); el.classList.add('selected'); el.querySelector('.check-box').innerText = 'check_box';
         }
@@ -758,7 +834,7 @@
         document.querySelectorAll('.group-separator[data-group]').forEach(separator => {
             const groupKey = separator.dataset.group;
             const sem = groupKey.split("_")[0];
-            const limit = parseInt(separator.dataset.limit || '1');
+            const limit = parseInt(separator.dataset.limit || '1'); // 저장된 동적 limit
             const groupItems = Array.from(document.querySelectorAll(`.course-item[data-group="${CSS.escape(groupKey)}"]`));
             const selectedCount = groupItems.filter(item => item.classList.contains('selected')).length;
             const complete = selectedCount === limit;
@@ -875,7 +951,7 @@
         container.innerHTML = `<table class="full-data-table"><thead><tr><th>과목명</th><th>교과군</th><th>유형</th><th>추가정보</th><th>선택/지정</th>${semesterHeaders}<th class="center">학점</th></tr></thead><tbody>${rows}</tbody></table>`;
     }
 
-    // 대입 권장 과목 연동 로직 (원형 유지)
+    // 대입 권장 과목 연동 로직
     function initAdmissionSearch() {
         if (!window.admissionRecommendations) return;
         const tableBody = document.getElementById('admissionTableBody');
