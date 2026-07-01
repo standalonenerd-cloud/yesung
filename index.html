@@ -633,9 +633,36 @@
         return [getCourseCategory(row)];
     }
 
+    // 과목명 정규화: 별표(*)·공백 제거, 가운뎃점/로마숫자 통일
+    // -> CSV 표기('기하*', '실용 통계*', '여행 지리' 등)와 메타데이터 키의
+    //    미세한 차이로 매칭이 깨지는 문제를 방지
+    function normalizeCourseName(s) {
+        if (!s) return '';
+        s = String(s).trim();
+        s = s.replace(/\*/g, '');       // 별표 제거 (보건과학 특화 표시 등)
+        s = s.replace(/⋅/g, '·');       // 가운뎃점 통일
+        s = s.replace(/\s/g, '');       // 모든 공백 제거
+        s = s.replace(/Ⅰ/g, '1').replace(/Ⅱ/g, '2').replace(/Ⅲ/g, '3').replace(/Ⅳ/g, '4').replace(/Ⅴ/g, '5');
+        return s;
+    }
+
+    // 정규화 키 기반 조회를 위한 인덱스 (최초 1회 생성)
+    let _metaNormIndex = null;
+    function getMetaByName(courseName) {
+        const db = window.courseMetadataDb || {};
+        // 1) 정확히 일치하면 그대로 반환
+        if (db[courseName]) return db[courseName];
+        // 2) 정규화 인덱스 구축 (지연 생성)
+        if (!_metaNormIndex) {
+            _metaNormIndex = {};
+            Object.keys(db).forEach(k => { _metaNormIndex[normalizeCourseName(k)] = db[k]; });
+        }
+        return _metaNormIndex[normalizeCourseName(courseName)] || {};
+    }
+
     function getCourseMeta(row, displayCategory) {
         const courseName = row['과목명'] || '';
-        const dbMeta = window.courseMetadataDb?.[courseName] || {};
+        const dbMeta = getMetaByName(courseName);
         return {
             "세부교과": dbMeta["세부교과"] || displayCategory,
             "설명": dbMeta["설명"] || "2022 개정 교육과정 상세 설명이 없습니다.",
