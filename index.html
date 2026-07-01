@@ -491,42 +491,68 @@
     let admissionCurrentFiltered = [];
     let admissionHideTimer = null;
 
-    // 1. 확실하게 교과 세부 카테고리를 분류하는 함수 (기타로 빠지는 현상 개선)
+    // 1. 교과 세부 카테고리 분류 함수 (교과군 데이터 최우선 신뢰)
+    //    - 엑셀 편성표의 '교과군' 값을 먼저 신뢰하여, 과목명에 다른 교과의
+    //      글자가 우연히 섞여 있어도 오분류되지 않도록 함
+    //      (예: '중국어'의 '국어', '중국 문화'의 '문화', '인문학과 윤리'의 '문학',
+    //       '스포츠 문화'의 '문화', '과학의 역사와 문화'의 '역사' 등)
     function getCourseCategory(row) {
         const subject = row['과목명'] || '';
         let cat = row['교과군'] || '';
         cat = cat.replace(/\s/g, ''); // 띄어쓰기 제거 (예: '과 학' -> '과학')
-        
-        if (cat === '국어' || subject.includes('국어') || subject.includes('화법') || subject.includes('독서') || subject.includes('언어') || subject.includes('문학') || subject.includes('매체')) return '국어';
-        if (cat === '수학' || subject.includes('수학') || subject.includes('미적분') || subject.includes('확률') || subject.includes('기하') || subject.includes('대수') || subject.includes('통계')) return '수학';
-        if (cat === '영어' || subject.includes('영어')) return '영어';
-        
-        if (cat === '예술' || subject.includes('음악') || subject.includes('미술') || subject.includes('합창') || subject.includes('합주') || subject.includes('시창') || subject.includes('공연')) {
+
+        // 1) 교과군(공식 편성표 분류)을 최우선 적용
+        if (cat === '국어') return '국어';
+        if (cat === '수학') return '수학';
+        if (cat === '영어') return '영어';
+        if (cat === '체육') return '체육';
+        if (cat.includes('제2외국어') || cat.includes('한문')) return '제2외국어/한문';
+        if (cat === '교양') return '교양';
+
+        if (cat === '예술') {
             if (subject.includes('음악') || subject.includes('합창') || subject.includes('합주') || subject.includes('시창') || subject.includes('공연')) return '음악';
             if (subject.includes('미술') || subject.includes('조형')) return '미술';
-            return '예술'; 
+            return '예술';
         }
-        
-        if (cat === '사회' || subject.includes('역사') || subject.includes('지리') || subject.includes('사회') || subject.includes('윤리') || subject.includes('정치') || subject.includes('경제') || subject.includes('문화')) {
+        if (cat === '사회') {
             if (['한국사', '세계사', '동아시아', '역사'].some(k => subject.includes(k))) return '역사';
             if (['지리'].some(k => subject.includes(k))) return '지리';
             if (['윤리', '사회문제', '법', '정치', '경제', '현대사회'].some(k => subject.includes(k))) return '일반사회/윤리';
             return '사회'; // 통합사회 등
         }
-        
-        if (cat === '과학' || subject.includes('물리') || subject.includes('화학') || subject.includes('생명') || subject.includes('생물') || subject.includes('지구') || subject.includes('우주') || subject.includes('물질') || subject.includes('세포') || subject.includes('에너지')) {
+        if (cat === '과학') {
             if (subject.includes('물리') || subject.includes('역학') || subject.includes('전자기')) return '물리';
             if (subject.includes('화학') || subject.includes('물질') || subject.includes('반응')) return '화학';
             if (subject.includes('생명') || subject.includes('생물') || subject.includes('세포') || subject.includes('인체')) return '생명';
             if (subject.includes('지구') || subject.includes('우주') || subject.includes('행성') || subject.includes('기후')) return '지구과학';
             return '과학'; // 통합과학 등
         }
-        
-        if (cat === '체육' || subject.includes('스포츠') || subject.includes('운동')) return '체육';
-        if (cat.includes('제2외국어') || cat.includes('한문') || subject.includes('중국어') || subject.includes('일본어') || subject.includes('한문')) return '제2외국어/한문';
-        if (cat === '교양' || subject.includes('보건') || subject.includes('철학') || subject.includes('심리') || subject.includes('교육') || subject.includes('환경')) return '교양';
-        if (cat.includes('기술') || cat.includes('가정') || cat.includes('정보') || cat.includes('생활') || subject.includes('인공지능') || subject.includes('지식 재산')) return '생활/기술/정보';
-        
+        if (cat.includes('기술') || cat.includes('가정') || cat.includes('정보') || cat.includes('생활')) return '생활/기술/정보';
+
+        // 2) 교과군 값이 비어있거나 인식 불가능할 때만 과목명 키워드로 추론 (보조 수단)
+        if (subject.includes('국어') || subject.includes('화법') || subject.includes('독서') || subject.includes('언어') || subject.includes('문학') || subject.includes('매체')) return '국어';
+        if (subject.includes('수학') || subject.includes('미적분') || subject.includes('확률') || subject.includes('기하') || subject.includes('대수') || subject.includes('통계')) return '수학';
+        if (subject.includes('영어')) return '영어';
+        if (subject.includes('음악') || subject.includes('합창') || subject.includes('합주') || subject.includes('시창') || subject.includes('공연')) return '음악';
+        if (subject.includes('미술') || subject.includes('조형')) return '미술';
+        if (subject.includes('역사') || subject.includes('지리') || subject.includes('사회') || subject.includes('윤리') || subject.includes('정치') || subject.includes('경제') || subject.includes('문화')) {
+            if (['한국사', '세계사', '동아시아', '역사'].some(k => subject.includes(k))) return '역사';
+            if (['지리'].some(k => subject.includes(k))) return '지리';
+            if (['윤리', '사회문제', '법', '정치', '경제', '현대사회'].some(k => subject.includes(k))) return '일반사회/윤리';
+            return '사회';
+        }
+        if (subject.includes('물리') || subject.includes('화학') || subject.includes('생명') || subject.includes('생물') || subject.includes('지구') || subject.includes('우주') || subject.includes('물질') || subject.includes('세포') || subject.includes('에너지')) {
+            if (subject.includes('물리') || subject.includes('역학') || subject.includes('전자기')) return '물리';
+            if (subject.includes('화학') || subject.includes('물질') || subject.includes('반응')) return '화학';
+            if (subject.includes('생명') || subject.includes('생물') || subject.includes('세포') || subject.includes('인체')) return '생명';
+            if (subject.includes('지구') || subject.includes('우주') || subject.includes('행성') || subject.includes('기후')) return '지구과학';
+            return '과학';
+        }
+        if (subject.includes('스포츠') || subject.includes('운동')) return '체육';
+        if (subject.includes('중국어') || subject.includes('일본어') || subject.includes('한문')) return '제2외국어/한문';
+        if (subject.includes('보건') || subject.includes('철학') || subject.includes('심리') || subject.includes('교육') || subject.includes('환경')) return '교양';
+        if (subject.includes('인공지능') || subject.includes('지식 재산')) return '생활/기술/정보';
+
         return '기타';
     }
 
