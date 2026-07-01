@@ -959,32 +959,84 @@
     }
 
     async function copySelectedCourses() {
-        const grouped = {};
-        selectedCourses.forEach(id => {
-            const [sem, courseName] = id.split("_");
-            const row = rawData.find(d => d['과목명'] === courseName && d[`${sem}_학점`]);
-            if (!row || row['학교지정'] === 'True') return;
+        // 엑셀 친화형(TSV): 붙여넣으면 열이 자동으로 나뉨
+        // 열 구성: 학년  학기  구분  교과  선택군  과목명  학점  성적처리유형
+        const trackText = document.getElementById('trackSelect').options[document.getElementById('trackSelect').selectedIndex].text;
+        const HEADER = ["학년", "학기", "구분", "교과", "선택군", "과목명", "학점", "성적처리유형"];
+        const rows = [];
+        let totalCredits = 0;
+        let mandCredits = 0;
+        let choiceCredits = 0;
+        let choiceCount = 0;
 
-            const label = row['선택군_원문'] || '선택';
-            if (!grouped[sem]) grouped[sem] = {};
-            if (!grouped[sem][label]) grouped[sem][label] = [];
-            grouped[sem][label].push(courseName);
-        });
-
-        const lines = [`[충주예성여고 - ${document.getElementById('trackSelect').options[document.getElementById('trackSelect').selectedIndex].text}]`];
         semesters.forEach(sem => {
-            if (!grouped[sem]) return;
-            lines.push(`- ${sem.split('-')[0]}학년 ${sem.split('-')[1]}학기`);
-            Object.keys(grouped[sem]).sort().forEach(label => {
-                lines.push(`  - ${label}: ${grouped[sem][label].join(', ')}`);
+            const [grade, term] = sem.split("-");
+            const semRows = [];
+
+            rawData.forEach(row => {
+                const credit = parseInt(row[`${sem}_학점`] || '0');
+                if (!credit || credit <= 0) return;
+
+                const isMandatory = row['학교지정'] === 'True';
+                const courseName = row['과목명'] || '';
+                const rowId = `${sem}_${courseName}`;
+
+                // 필수과목은 항상 포함, 선택과목은 체크된 것만 포함
+                if (!isMandatory && !selectedCourses.has(rowId)) return;
+
+                const category = getCourseCategory(row);
+                const gubun = isMandatory ? '필수(학교지정)' : '선택';
+                const label = isMandatory ? '-' : (row['선택군_원문'] || '선택');
+                const meta = getCourseMeta(row, category);
+                const gradeType = meta.성적산출방식 || '';
+
+                semRows.push({
+                    sortW: getSortWeight(row),
+                    name: courseName,
+                    cells: [
+                        `${grade}학년`, `${term}학기`, gubun, category, label,
+                        courseName, String(credit), gradeType
+                    ]
+                });
+
+                totalCredits += credit;
+                if (isMandatory) { mandCredits += credit; }
+                else { choiceCredits += credit; choiceCount += 1; }
             });
+
+            // 학기 내 정렬: 필수 먼저, 그다음 교과 가중치 순
+            semRows.sort((a, b) => {
+                const am = a.cells[2].startsWith('필수') ? 0 : 1;
+                const bm = b.cells[2].startsWith('필수') ? 0 : 1;
+                if (am !== bm) return am - bm;
+                if (a.sortW !== b.sortW) return a.sortW - b.sortW;
+                return a.name.localeCompare(b.name);
+            });
+            semRows.forEach(r => rows.push(r.cells));
         });
 
-        const text = lines.length > 1 ? lines.join('\n') : '선택한 과목이 없습니다.';
+        if (rows.length === 0) {
+            const button = document.getElementById('copySelectionBtn');
+            const original = button.innerHTML;
+            try { await navigator.clipboard.writeText('선택한 과목이 없습니다.'); } catch (e) {}
+            button.innerHTML = '<span class="material-icons-round">info</span>선택 없음';
+            setTimeout(() => { button.innerHTML = original; }, 1500);
+            return;
+        }
+
+        const totalWithCA = totalCredits + creativeActivityCredits;
+        const tsv = [];
+        tsv.push(`[충주예성여고 - ${trackText}] 이수 계획`);
+        tsv.push(HEADER.join('\t'));
+        rows.forEach(cells => tsv.push(cells.join('\t')));
+        tsv.push(['', '', '', '', '', '창의적 체험활동', String(creativeActivityCredits), '-'].join('\t'));
+        tsv.push(['합계', '', '', '', '', `선택 ${choiceCount}과목`, String(totalWithCA), `졸업기준 ${graduationCredits}`].join('\t'));
+
+        const text = tsv.join('\n');
         const button = document.getElementById('copySelectionBtn');
         const original = button.innerHTML;
 
-        try { await navigator.clipboard.writeText(text); button.innerHTML = '<span class="material-icons-round">check</span>복사됨'; } 
+        try { await navigator.clipboard.writeText(text); button.innerHTML = '<span class="material-icons-round">check</span>복사됨'; }
         catch (e) { alert("복사 실패!"); }
         setTimeout(() => { button.innerHTML = original; }, 1500);
     }
