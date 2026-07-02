@@ -1141,14 +1141,85 @@
         });
 
         // 8개 영역으로 합산
-        return FULFILLMENT_AREAS.map(area => {
+        const areaResults = FULFILLMENT_AREAS.map(area => {
             const earned = area.cats.reduce((sum, c) => sum + (catCredits[c] || 0), 0);
             return { key: area.key, label: area.label || area.key, required: area.required, earned };
         });
+        // 세부 카테고리별 학점도 함께 반환 (국영수 소계 등에 사용)
+        areaResults._catCredits = catCredits;
+        return areaResults;
+    }
+
+    // 이수(필수+선택) 과목을 학기 정보와 함께 수집
+    function collectIsuCourses() {
+        const list = []; // { name, sem, credit, cat, isMandatory }
+        rawData.forEach(r => {
+            const isM = r['학교지정'] === 'True';
+            semesters.forEach(s => {
+                const cr = parseInt(r[`${s}_학점`] || '0');
+                if (cr <= 0) return;
+                const id = `${s}_${r['과목명']}`;
+                if (isM || selectedCourses.has(id)) {
+                    list.push({ name: r['과목명'], sem: s, credit: cr, cat: getCourseCategory(r), isMandatory: isM });
+                }
+            });
+        });
+        return list;
+    }
+
+    // 국영수 소계: 국어+영어+수학 이수 학점 (상한 81)
+    function computeKEMSubtotal(catCredits) {
+        const kem = (catCredits['국어']||0) + (catCredits['영어']||0) + (catCredits['수학']||0);
+        return { earned: kem, limit: 81, met: kem <= 81 };
+    }
+
+    // 체육(학기) 소계: 체육 과목을 이수한 학기 수 (6학기 이수 권장)
+    function computePEBySemester(courses) {
+        const peSems = new Set();
+        courses.forEach(c => { if (c.cat === '체육') peSems.add(c.sem); });
+        return { count: peSems.size, required: 6, met: peSems.size >= 6 };
+    }
+
+    // 위계성 점검: 선행-후행 과목 쌍. 후행을 이수했다면 선행을 같은/이전 학기에 이수했는지 확인
+    const HIERARCHY_PAIRS = [
+        { later: '미적분Ⅱ', prereq: ['미적분Ⅰ'] },
+        { later: '미적분Ⅰ', prereq: ['대수'] },
+        { later: '기하',     prereq: ['대수'] },
+        { later: '확률과 통계', prereq: ['대수'] },
+        { later: '영어Ⅱ',   prereq: ['영어Ⅰ'] },
+        { later: '심화 영어 독해와 작문', prereq: ['영어 독해와 작문'] },
+    ];
+    const SEM_ORDER = { '1-1':1,'1-2':2,'2-1':3,'2-2':4,'3-1':5,'3-2':6 };
+
+    function computeHierarchyCheck(courses) {
+        // 과목명(별표 제거) → 가장 이른 이수 학기
+        const norm = s => (s||'').replace(/\*/g,'').replace(/\s/g,'');
+        const earliest = {};
+        courses.forEach(c => {
+            const k = norm(c.name);
+            const ord = SEM_ORDER[c.sem] || 99;
+            if (earliest[k] === undefined || ord < earliest[k]) earliest[k] = ord;
+        });
+
+        const results = [];
+        HIERARCHY_PAIRS.forEach(pair => {
+            const laterK = norm(pair.later);
+            if (earliest[laterK] === undefined) return; // 후행 과목 미이수 → 점검 대상 아님
+            // 모든 선행 과목이 후행보다 같거나 이른 학기에 이수됐는지
+            let ok = true;
+            pair.prereq.forEach(pre => {
+                const preK = norm(pre);
+                if (earliest[preK] === undefined || earliest[preK] > earliest[laterK]) ok = false;
+            });
+            results.push({ course: pair.later, met: ok, prereq: pair.prereq });
+        });
+        return results;
     }
 
     function renderFulfillmentChart() {
         const areas = computeAreaCredits();
+        const catCredits = areas._catCredits || {};
+        const courses = collectIsuCourses();
         const chart = document.getElementById('fulfillmentChart');
         const labelRow = document.getElementById('fulfillmentLabels');
         if (!chart) return;
@@ -1195,6 +1266,11 @@
         const totalEarned = areas.reduce((s,a)=>s+a.earned,0);
         const notMet = areas.filter(a => a.earned < a.required);
 
+        // 추가 점검 항목 계산
+        const kem = computeKEMSubtotal(catCredits);       // 국영수 소계
+        const pe  = computePEBySemester(courses);         // 체육 학기 소계
+        const hier = computeHierarchyCheck(courses);      // 위계성 점검
+
         let rows = areas.map(a => {
             const diff = a.earned - a.required;
             const met = diff >= 0;
@@ -1206,6 +1282,38 @@
                 <td style="padding:8px 12px; border-bottom:1px solid #f1f5f9; text-align:center; color:#64748b;">${a.required}학점 이상</td>
             </tr>`;
         }).join('');
+
+        // ── 국영수 소계 행 ──
+        const kemDiff = kem.limit - kem.earned;
+        rows += `<tr style="background:#f8fafc;">
+            <td style="padding:8px 12px; border-bottom:1px solid #f1f5f9; font-weight:700;">국영수 소계</td>
+            <td style="padding:8px 12px; border-bottom:1px solid #f1f5f9; text-align:center; font-weight:700; color:${kem.met?'#059669':'#dc2626'};">${kem.met?'충족':'초과'}</td>
+            <td style="padding:8px 12px; border-bottom:1px solid #f1f5f9; text-align:center; font-weight:700; color:${kem.met?'#2563eb':'#dc2626'};">${kemDiff>=0?'-'+kemDiff:'+'+(-kemDiff)}</td>
+            <td style="padding:8px 12px; border-bottom:1px solid #f1f5f9; text-align:center;">${kem.earned}</td>
+            <td style="padding:8px 12px; border-bottom:1px solid #f1f5f9; text-align:center; color:#64748b;">${kem.limit}학점 이내</td>
+        </tr>`;
+
+        // ── 체육(학기) 소계 행 ──
+        const peDiff = pe.count - pe.required;
+        rows += `<tr style="background:#f8fafc;">
+            <td style="padding:8px 12px; border-bottom:1px solid #f1f5f9; font-weight:700;">체육(학기) 소계</td>
+            <td style="padding:8px 12px; border-bottom:1px solid #f1f5f9; text-align:center; font-weight:700; color:${pe.met?'#059669':'#dc2626'};">${pe.met?'충족':'부족'}</td>
+            <td style="padding:8px 12px; border-bottom:1px solid #f1f5f9; text-align:center; font-weight:700; color:${pe.met?'#2563eb':'#dc2626'};">${peDiff>0?'+':''}${peDiff}</td>
+            <td style="padding:8px 12px; border-bottom:1px solid #f1f5f9; text-align:center;">${pe.count}학기</td>
+            <td style="padding:8px 12px; border-bottom:1px solid #f1f5f9; text-align:center; color:#64748b;">6학기 이수</td>
+        </tr>`;
+
+        // ── 위계성 점검 결과 행 ──
+        const hierText = hier.length === 0
+            ? '<span style="color:#94a3b8;">점검 대상 과목 없음</span>'
+            : hier.map(h => `${h.course}(<span style="color:${h.met?'#059669':'#dc2626'}; font-weight:700;">${h.met?'충족':'위반'}</span>)`).join(', ');
+        const hierAllOk = hier.every(h => h.met);
+        rows += `<tr style="background:#fef9f9;">
+            <td style="padding:8px 12px; border-bottom:1px solid #f1f5f9; font-weight:700;">위계성 점검 결과</td>
+            <td colspan="4" style="padding:8px 12px; border-bottom:1px solid #f1f5f9; text-align:center;">${hierText}</td>
+        </tr>`;
+
+        const anyProblem = notMet.length > 0 || !kem.met || !pe.met || !hierAllOk;
 
         summary.innerHTML = `
             <h3 style="font-size:0.92rem; color:#0f172a; margin:0 0 10px;">영역별 상세</h3>
@@ -1221,15 +1329,23 @@
                 </thead>
                 <tbody>${rows}</tbody>
             </table>
-            <div style="margin-top:14px; padding:12px 16px; border-radius:8px; background:${notMet.length===0?'#dcfce7':'#fff1f2'}; border:1px solid ${notMet.length===0?'#22c55e':'#fecdd3'};">
-                <span style="font-weight:700; color:${notMet.length===0?'#166534':'#be123c'};">
-                    ${notMet.length===0
-                        ? '✅ 모든 교과 영역의 필수 이수 학점을 충족했습니다.'
-                        : `⚠️ 아직 부족한 영역이 ${notMet.length}개 있습니다: ${notMet.map(a=>a.label.replace(/\n/g,' ')).join(', ')}`}
+            <div style="margin-top:14px; padding:12px 16px; border-radius:8px; background:${!anyProblem?'#dcfce7':'#fff1f2'}; border:1px solid ${!anyProblem?'#22c55e':'#fecdd3'};">
+                <span style="font-weight:700; color:${!anyProblem?'#166534':'#be123c'};">
+                    ${!anyProblem
+                        ? '✅ 모든 필수 이수 조건과 위계성 점검을 충족했습니다.'
+                        : '⚠️ 확인이 필요한 항목이 있습니다: '
+                          + [
+                              notMet.length>0 ? `학점 부족(${notMet.map(a=>a.label.replace(/\n/g,' ')).join(', ')})` : '',
+                              !kem.met ? '국영수 81학점 초과' : '',
+                              !pe.met ? `체육 이수 학기 부족(${pe.count}/6)` : '',
+                              !hierAllOk ? '위계성 위반 과목 존재' : '',
+                            ].filter(Boolean).join(' / ')}
                 </span>
             </div>
             <p style="margin-top:12px; font-size:0.72rem; color:#94a3b8;">
-                ※ 필수 이수 학점은 2022 개정 교육과정 일반고 기준입니다. 창의적 체험활동(18학점)은 별도이며, 졸업을 위한 총 이수 학점은 192학점입니다.
+                ※ 필수 이수 학점은 2022 개정 교육과정 일반고 기준입니다. 창의적 체험활동(18학점)은 별도이며, 졸업 총 이수 학점은 192학점입니다.<br>
+                ※ 국영수 소계는 3개 교과 합계가 81학점 이내여야 합니다. 체육은 6개 학기에 걸쳐 이수하는 것을 권장합니다.<br>
+                ※ 위계성 점검: 후행 과목(예: 미적분Ⅱ)을 선행 과목(미적분Ⅰ)보다 먼저 이수하지 않았는지 확인합니다.
             </p>`;
     }
 
@@ -1378,18 +1494,52 @@
             });
             document.getElementById('admissionDeptSearch').addEventListener('input', renderAdmissionTable);
             document.getElementById('admissionSubjectSearch').addEventListener('input', renderAdmissionTable);
+            document.getElementById('admissionUniInput').addEventListener('input', renderAdmissionTable);
+            setupUniDropdown();
             admissionInitialized = true;
         }
         renderAdmissionTable();
     }
+
+    // 대학명 자동완성 드롭다운
+    function setupUniDropdown() {
+        const input = document.getElementById('admissionUniInput');
+        const dropdown = document.getElementById('admissionUniDropdown');
+        if (!input || !dropdown) return;
+
+        const allUnis = Array.from(new Set(window.admissionRecommendations.map(r => r.uni))).sort();
+
+        function showList(filter) {
+            const f = (filter || '').replace(/\s/g,'').toLowerCase();
+            const matches = allUnis.filter(u => u.replace(/\s/g,'').toLowerCase().includes(f));
+            if (matches.length === 0) { dropdown.style.display = 'none'; return; }
+            dropdown.innerHTML = matches.map(u =>
+                `<div class="admission-dropdown-item" data-uni="${u}">${u}</div>`).join('');
+            dropdown.style.display = 'block';
+            dropdown.querySelectorAll('.admission-dropdown-item').forEach(item => {
+                item.addEventListener('mousedown', (e) => {
+                    e.preventDefault();
+                    input.value = item.dataset.uni;
+                    dropdown.style.display = 'none';
+                    renderAdmissionTable();
+                });
+            });
+        }
+
+        input.addEventListener('focus', () => showList(input.value));
+        input.addEventListener('input', () => showList(input.value));
+        input.addEventListener('blur', () => { setTimeout(() => dropdown.style.display = 'none', 150); });
+    }
     
     function renderAdmissionTable() {
         if(!window.admissionRecommendations) return;
+        const uniQuery  = document.getElementById('admissionUniInput').value.toLowerCase().trim();
         const deptQuery = document.getElementById('admissionDeptSearch').value.toLowerCase().trim();
         const subjQuery = document.getElementById('admissionSubjectSearch').value.toLowerCase().trim();
         const terms = subjQuery.split(',').map(t => t.trim()).filter(Boolean);
         
         const filtered = window.admissionRecommendations.filter(row => {
+            if (uniQuery && !(row.uni || '').toLowerCase().replace(/\s/g,'').includes(uniQuery.replace(/\s/g,''))) return false;
             if (deptQuery && !row.dept.toLowerCase().includes(deptQuery)) return false;
             if (terms.length) {
                 const subjText = `${row.core || ''} ${row.rec || ''}`.toLowerCase().replace(/\s/g,'');
