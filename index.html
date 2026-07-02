@@ -7,6 +7,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
         :root {
             /* 예성여고 테마 컬러 (자주/와인톤) */
@@ -422,20 +423,24 @@
             <span class="material-icons-round">content_copy</span>
             과목 복사
         </button>
+        <button id="saveImageBtn" class="copy-selection-btn" onclick="saveSimulatorImage()" title="로드맵을 PNG 이미지로 저장">
+            <span class="material-icons-round">image</span>
+            이미지 저장
+        </button>
     </div>
 </header>
 
 <div class="main-tabs">
-    <button class="main-tab-btn active" onclick="switchTab('simulator')">로드맵 시뮬레이터</button>
-    <button class="main-tab-btn" onclick="switchTab('upload')">
+    <button class="main-tab-btn active" onclick="switchTab('upload')">
         <span class="material-icons-round" style="font-size:14px;vertical-align:middle;">upload_file</span>
         학생 과목 불러오기
     </button>
+    <button class="main-tab-btn" onclick="switchTab('simulator')">로드맵 시뮬레이터</button>
     <button class="main-tab-btn" onclick="switchTab('admission')">대입 권장과목 검색</button>
     <button class="main-tab-btn utility" onclick="switchTab('full')">원자료 표</button>
 </div>
 
-<div id="simWrapper">
+<div id="simWrapper" class="hidden">
     <svg id="svgOverlay"></svg>
     <div id="tab-simulator" class="simulator-container"></div>
 </div>
@@ -444,7 +449,7 @@
     <div id="fullViewContent"></div>
 </div>
 
-<div id="tab-upload" class="hidden" style="flex:1; overflow:auto; padding:24px; background:#f1f3f6; display:flex; flex-direction:column; gap:16px;">
+<div id="tab-upload" class="" style="flex:1; overflow:auto; padding:24px; background:#f1f3f6; display:flex; flex-direction:column; gap:16px;">
     <div style="background:white; border:1px solid #dbe3ef; border-radius:12px; padding:20px; box-shadow:0 2px 5px rgba(15,23,42,0.06);">
         <div style="display:flex; align-items:center; gap:10px; margin-bottom:6px;">
             <span class="material-icons-round" style="color:var(--md-sys-color-primary); font-size:22px;">upload_file</span>
@@ -1409,6 +1414,57 @@
         document.getElementById('uploadErrorMsg').textContent = msg;
         document.getElementById('uploadErrorPanel').classList.remove('hidden');
         document.getElementById('uploadResultPanel').classList.add('hidden');
+    }
+
+    // =====================================================================
+    // 시뮬레이터 화면 PNG 이미지 저장
+    // =====================================================================
+    async function saveSimulatorImage() {
+        const btn = document.getElementById('saveImageBtn');
+        const original = btn.innerHTML;
+
+        // 시뮬레이터 탭이 아니면 먼저 이동
+        const wasOnSimulator = !document.getElementById('simWrapper').classList.contains('hidden');
+        if (!wasOnSimulator) switchTab('simulator');
+
+        btn.innerHTML = '<span class="material-icons-round">hourglass_empty</span>캡처 중...';
+        btn.disabled = true;
+
+        // SVG 경로선 잠시 강조 (캡처 후 복원)
+        await new Promise(r => setTimeout(r, 120)); // 렌더 안정화 대기
+
+        try {
+            const target = document.getElementById('simWrapper');
+            const canvas = await html2canvas(target, {
+                scale: 2,                    // 2배 해상도 (고화질)
+                useCORS: true,
+                backgroundColor: '#e2e8f0',  // 시뮬레이터 배경색
+                logging: false,
+                // 스크롤된 패널도 보이는 영역만 캡처 (전체 높이 기준)
+                windowWidth: document.documentElement.scrollWidth,
+                windowHeight: document.documentElement.scrollHeight,
+            });
+
+            // PNG 다운로드
+            const trackText = document.getElementById('trackSelect')
+                .options[document.getElementById('trackSelect').selectedIndex].text;
+            const now = new Date();
+            const stamp = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}`;
+            const filename = `충주예성여고_교육과정_${trackText}_${stamp}.png`;
+
+            const link = document.createElement('a');
+            link.download = filename;
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+
+            btn.innerHTML = '<span class="material-icons-round">check</span>저장됨';
+        } catch (e) {
+            alert('이미지 저장 중 오류가 발생했습니다: ' + e.message);
+            btn.innerHTML = original;
+        } finally {
+            btn.disabled = false;
+            setTimeout(() => { btn.innerHTML = original; }, 2000);
+        }
     }
 
     // 앱 초기 실행
