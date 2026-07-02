@@ -938,9 +938,17 @@
 
     function toggleSelection(el, row, sem, groupId) {
         const rowId = `${sem}_${row['과목명']}`;
+        const courseName = row['과목명'];
         if (selectedCourses.has(rowId)) {
             selectedCourses.delete(rowId); el.classList.remove('selected'); el.querySelector('.check-box').innerText = 'check_box_outline_blank';
         } else {
+            // 다른 학기에서 같은 과목을 이미 선택했는지 확인 (중복 수강 방지)
+            const alreadyInOtherSem = semesters.filter(s => s !== sem).find(s => selectedCourses.has(`${s}_${courseName}`));
+            if (alreadyInOtherSem) {
+                const semLabel = {'1-1':'1학년 1학기','1-2':'1학년 2학기','2-1':'2학년 1학기','2-2':'2학년 2학기','3-1':'3학년 1학기','3-2':'3학년 2학기'};
+                alert(`"${courseName}"은 이미 ${semLabel[alreadyInOtherSem]}에 선택되어 있습니다.\n같은 과목을 두 학기에 중복 수강할 수 없습니다.`);
+                return;
+            }
             // 동적 한도 계산 
             const limit = getDynamicLimit(row, sem);
             
@@ -1424,28 +1432,51 @@
         const original = btn.innerHTML;
 
         // 시뮬레이터 탭이 아니면 먼저 이동
-        const wasOnSimulator = !document.getElementById('simWrapper').classList.contains('hidden');
-        if (!wasOnSimulator) switchTab('simulator');
+        if (document.getElementById('simWrapper').classList.contains('hidden')) switchTab('simulator');
+        await new Promise(r => setTimeout(r, 150));
 
         btn.innerHTML = '<span class="material-icons-round">hourglass_empty</span>캡처 중...';
         btn.disabled = true;
 
-        // SVG 경로선 잠시 강조 (캡처 후 복원)
-        await new Promise(r => setTimeout(r, 120)); // 렌더 안정화 대기
+        // ── 전체 스크롤 캡처를 위한 전처리 ──────────────────────────────
+        // 1) 각 학기 패널의 스크롤을 맨 위로 올리고
+        // 2) 패널 높이를 scrollHeight(전체 내용 높이)로 임시 확장
+        // 3) 캡처 후 원래 상태로 복원
+        const panels = Array.from(document.querySelectorAll('.semester-content'));
+        const origStyles = panels.map(p => ({
+            height: p.style.height,
+            overflow: p.style.overflow,
+            scrollTop: p.scrollTop,
+        }));
+        panels.forEach(p => {
+            p.scrollTop = 0;
+            p.style.overflow = 'visible';
+            p.style.height = p.scrollHeight + 'px';
+        });
+
+        // 페이드아웃 마스크(::after)도 숨김
+        const semPanels = Array.from(document.querySelectorAll('.semester-panel'));
+        semPanels.forEach(p => p.classList.add('scrolled-to-bottom'));
+
+        // SVG 경로 다시 그리기
+        drawPaths();
+        await new Promise(r => setTimeout(r, 120));
 
         try {
             const target = document.getElementById('simWrapper');
             const canvas = await html2canvas(target, {
-                scale: 2,                    // 2배 해상도 (고화질)
+                scale: 2,
                 useCORS: true,
-                backgroundColor: '#e2e8f0',  // 시뮬레이터 배경색
+                backgroundColor: '#e2e8f0',
                 logging: false,
-                // 스크롤된 패널도 보이는 영역만 캡처 (전체 높이 기준)
-                windowWidth: document.documentElement.scrollWidth,
-                windowHeight: document.documentElement.scrollHeight,
+                // 확장된 전체 높이 기준으로 캡처
+                height: target.scrollHeight,
+                windowWidth: target.scrollWidth,
+                windowHeight: target.scrollHeight,
+                scrollY: 0,
+                scrollX: 0,
             });
 
-            // PNG 다운로드
             const trackText = document.getElementById('trackSelect')
                 .options[document.getElementById('trackSelect').selectedIndex].text;
             const now = new Date();
@@ -1462,6 +1493,15 @@
             alert('이미지 저장 중 오류가 발생했습니다: ' + e.message);
             btn.innerHTML = original;
         } finally {
+            // ── 원래 상태로 복원 ─────────────────────────────────────────
+            panels.forEach((p, i) => {
+                p.style.height = origStyles[i].height;
+                p.style.overflow = origStyles[i].overflow;
+                p.scrollTop = origStyles[i].scrollTop;
+            });
+            semPanels.forEach(p => p.classList.remove('scrolled-to-bottom'));
+            updateScrollMasks();
+            drawPaths();
             btn.disabled = false;
             setTimeout(() => { btn.innerHTML = original; }, 2000);
         }
