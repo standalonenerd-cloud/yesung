@@ -661,6 +661,28 @@
         return map[cat] || 'var(--cat-default)';
     }
 
+    // CSS 변수 색상(예: var(--cat-korean))을 실제 hex로 resolve하거나
+    // 이미 hex이면 그대로 사용해, white와 ratio(0~1) 비율로 혼합한 hex 반환
+    function blendWithWhite(colorVal, ratio) {
+        // CSS 변수인 경우 getComputedStyle로 실제값 취득
+        let hex = colorVal;
+        if (colorVal.startsWith('var(')) {
+            const varName = colorVal.match(/var\((--[^)]+)\)/)?.[1];
+            if (varName) {
+                hex = getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
+            }
+        }
+        // hex → rgb
+        hex = hex.replace('#', '');
+        if (hex.length === 3) hex = hex.split('').map(c => c+c).join('');
+        const r = parseInt(hex.slice(0,2), 16);
+        const g = parseInt(hex.slice(2,4), 16);
+        const b = parseInt(hex.slice(4,6), 16);
+        // white와 혼합 (ratio = 원색 비율)
+        const blend = (c) => Math.round(c * ratio + 255 * (1 - ratio));
+        return `rgb(${blend(r)},${blend(g)},${blend(b)})`;
+    }
+
     function getCourseCategoryColor(row) {
         return getCategoryColor(getCourseCategory(row));
     }
@@ -921,7 +943,8 @@
                 if (currentGroup && el.dataset.group === currentGroup) el.classList.add('group-hover');
                 if (currentCat && el.dataset.cat === currentCat) { 
                     el.classList.add('cat-hover'); 
-                    el.style.backgroundColor = `color-mix(in srgb, ${color}, white 90%)`; 
+                    // html2canvas가 color-mix()를 지원 안 하므로 JS로 직접 혼합
+                    el.style.backgroundColor = blendWithWhite(color, 0.10); 
                 }
             });
             const tooltip = document.getElementById('courseTooltip'), meta = getCourseMeta(row, cat);
@@ -1527,6 +1550,13 @@
 
             // 오프스크린 열 수를 실제 패널 수에 맞게 조정
             offscreen.style.gridTemplateColumns = `repeat(${filledPanelCount}, 1fr)`;
+
+            // 호버로 남은 인라인 backgroundColor 초기화 (color-mix 잔재 방어)
+            offscreen.querySelectorAll('[style*="background-color"]').forEach(el => {
+                if (!el.classList.contains('selected') && !el.classList.contains('mandatory')) {
+                    el.style.backgroundColor = '';
+                }
+            });
 
             // 렌더링 안정화 대기
             await new Promise(r => setTimeout(r, 200));
