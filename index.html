@@ -457,6 +457,10 @@
 </div>
 
 <div id="simWrapper" class="hidden">
+    <div id="studentInfoBanner" style="display:none; align-items:center; gap:8px; padding:6px 16px; background:#fff0f3; border-bottom:1px solid #ffdadb;">
+        <span class="material-icons-round" style="font-size:16px; color:var(--md-sys-color-primary);">badge</span>
+        <span id="studentInfoText" style="font-size:0.82rem; font-weight:700; color:var(--md-sys-color-primary);"></span>
+    </div>
     <svg id="svgOverlay"></svg>
     <div id="tab-simulator" class="simulator-container"></div>
 </div>
@@ -472,6 +476,31 @@
             <h2 style="margin:0; font-size:1rem; color:#0f172a;">학생 교육과정 엑셀 불러오기</h2>
         </div>
         <p style="margin:0 0 16px; font-size:0.82rem; color:#64748b;">학교에서 발급한 교육과정 엑셀 파일(.xls / .xlsx)을 업로드하면 선택과목이 자동으로 체크됩니다.<br>파일 형식: 과목명(D열) · 학기별 학점(G~L열) 구조의 표준 양식</p>
+
+        <!-- 학생 인적사항 입력 -->
+        <div style="display:flex; flex-wrap:wrap; align-items:flex-end; gap:12px; margin-bottom:16px; padding:14px 16px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px;">
+            <div style="display:flex; align-items:center; gap:6px; color:#475569; font-weight:700; font-size:0.85rem; margin-right:4px;">
+                <span class="material-icons-round" style="font-size:18px; color:var(--md-sys-color-primary);">badge</span>
+                학생 정보
+            </div>
+            <div style="display:flex; flex-direction:column; gap:3px;">
+                <label style="font-size:0.7rem; font-weight:700; color:#64748b;">학년</label>
+                <input type="text" id="studentGrade" placeholder="예: 2" maxlength="2" oninput="updateStudentInfo()" style="width:60px; border:1px solid #cbd5e1; border-radius:6px; padding:7px 9px; font-size:0.82rem; outline:none;">
+            </div>
+            <div style="display:flex; flex-direction:column; gap:3px;">
+                <label style="font-size:0.7rem; font-weight:700; color:#64748b;">반</label>
+                <input type="text" id="studentClass" placeholder="예: 3" maxlength="3" oninput="updateStudentInfo()" style="width:60px; border:1px solid #cbd5e1; border-radius:6px; padding:7px 9px; font-size:0.82rem; outline:none;">
+            </div>
+            <div style="display:flex; flex-direction:column; gap:3px;">
+                <label style="font-size:0.7rem; font-weight:700; color:#64748b;">번호</label>
+                <input type="text" id="studentNumber" placeholder="예: 15" maxlength="3" oninput="updateStudentInfo()" style="width:60px; border:1px solid #cbd5e1; border-radius:6px; padding:7px 9px; font-size:0.82rem; outline:none;">
+            </div>
+            <div style="display:flex; flex-direction:column; gap:3px;">
+                <label style="font-size:0.7rem; font-weight:700; color:#64748b;">이름</label>
+                <input type="text" id="studentName" placeholder="예: 홍길동" maxlength="10" oninput="updateStudentInfo()" style="width:110px; border:1px solid #cbd5e1; border-radius:6px; padding:7px 9px; font-size:0.82rem; outline:none;">
+            </div>
+            <span style="font-size:0.72rem; color:#94a3b8; margin-left:auto;">입력하면 로드맵 상단과 저장 이미지에 표시됩니다</span>
+        </div>
         
         <!-- 드래그앤드롭 영역 -->
         <label id="uploadDropZone" for="xlsUploadInput" style="display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; border:2px dashed #cbd5e1; border-radius:10px; padding:36px 20px; cursor:pointer; transition:all 0.2s; background:#f8fafc;">
@@ -583,6 +612,38 @@
     let rawData = [];
     let groupsData = [];
     let selectedCourses = new Set();
+
+    // 학생 인적사항 상태
+    let studentInfo = { grade: '', class: '', number: '', name: '' };
+    function updateStudentInfo() {
+        studentInfo.grade  = (document.getElementById('studentGrade')?.value || '').trim();
+        studentInfo.class  = (document.getElementById('studentClass')?.value || '').trim();
+        studentInfo.number = (document.getElementById('studentNumber')?.value || '').trim();
+        studentInfo.name   = (document.getElementById('studentName')?.value || '').trim();
+        renderStudentBanner();
+    }
+    // 인적사항 표시 문자열 생성 (예: "2학년 3반 15번 홍길동")
+    function getStudentInfoText() {
+        const parts = [];
+        if (studentInfo.grade)  parts.push(`${studentInfo.grade}학년`);
+        if (studentInfo.class)  parts.push(`${studentInfo.class}반`);
+        if (studentInfo.number) parts.push(`${studentInfo.number}번`);
+        let s = parts.join(' ');
+        if (studentInfo.name) s += (s ? '  ' : '') + studentInfo.name;
+        return s;
+    }
+    function renderStudentBanner() {
+        const banner = document.getElementById('studentInfoBanner');
+        const text = getStudentInfoText();
+        if (banner) {
+            if (text) {
+                document.getElementById('studentInfoText').textContent = text;
+                banner.style.display = 'flex';
+            } else {
+                banner.style.display = 'none';
+            }
+        }
+    }
     const semesters = ["1-1", "1-2", "2-1", "2-2", "3-1", "3-2"];
     let creativeActivityCredits = 18; // 충주예성여고 창체 기본 18학점
     const graduationCredits = 192;
@@ -849,7 +910,7 @@
         if (tab === 'full') renderFullView();
         else if (tab === 'admission') initAdmissionSearch();
         else if (tab === 'fulfillment') renderFulfillmentChart();
-        else setTimeout(drawPaths, 100);
+        else { renderStudentBanner(); setTimeout(drawPaths, 100); }
     }
 
     // 학기별 동적 한도 계산 (3학년 2학기 8과목 문제 해결)
@@ -1551,13 +1612,24 @@
         const tbody = document.getElementById('admissionTableBody');
         if(!filtered.length) { tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding:30px; color:#666;">검색 결과가 없습니다.</td></tr>`; return; }
         
-        tbody.innerHTML = filtered.map(row => `<tr>
+        tbody.innerHTML = filtered.map(row => {
+            const isPlaceholder = row.core && (row.core.includes('미지정') || row.core.includes('미제시'));
+            const coreCell = !row.core || row.core === '-'
+                ? ''
+                : isPlaceholder
+                    ? `<span style="color:#94a3b8; font-style:italic;">${row.core}</span>`
+                    : `<span class="admission-chip">핵</span>${row.core}`;
+            const recCell = row.rec && row.rec !== '-'
+                ? `<span class="admission-chip" style="background:#dbeafe; color:#1d4ed8; border-color:#bfdbfe">권</span>${row.rec}`
+                : '';
+            return `<tr>
             <td><strong>${row.uni}</strong></td>
             <td>${row.dept}</td>
-            <td>${row.core && row.core !== '-' ? `<span class="admission-chip">핵</span>${row.core}` : ''}</td>
-            <td>${row.rec && row.rec !== '-' ? `<span class="admission-chip" style="background:#dbeafe; color:#1d4ed8; border-color:#bfdbfe">권</span>${row.rec}` : ''}</td>
+            <td>${coreCell}</td>
+            <td>${recCell}</td>
             <td>${row.note || ''}</td>
-        </tr>`).join('');
+        </tr>`;
+        }).join('');
         document.getElementById('admissionCountInfo').innerHTML = `검색 결과: <strong>${filtered.length}</strong>건`;
     }
 
@@ -1795,27 +1867,57 @@
         // simWrapper 안의 simulator-container를 복제해 스크롤/overflow 제약 없이
         // 화면 밖(left:-9999px)에 완전히 펼쳐 놓은 뒤 캡처 → 원본은 그대로 유지
         let offscreen = null;
+        let captureWrapper = null;
         try {
             const source = document.getElementById('tab-simulator');
             const colCount = semesters.length; // 6
 
+            const gridWidth = Math.max(document.getElementById('simWrapper').offsetWidth, colCount * 200 + (colCount-1)*40 + 40);
+
+            // 캡처 전체를 감싸는 외곽 컨테이너 (인적사항 헤더 + 그리드)
+            captureWrapper = document.createElement('div');
+            captureWrapper.style.cssText = `
+                position: fixed;
+                top: 0; left: -99999px;
+                width: ${gridWidth}px;
+                background: #e2e8f0;
+                box-sizing: border-box;
+                z-index: -1;
+                overflow: visible;
+            `;
+
+            // 인적사항 + 과정명 헤더 (입력값 있을 때만)
+            const infoText = getStudentInfoText();
+            const trackTextForHeader = document.getElementById('trackSelect')
+                .options[document.getElementById('trackSelect').selectedIndex].text;
+            const header = document.createElement('div');
+            header.style.cssText = `
+                padding: 16px 24px 12px;
+                background: #8a1c3e;
+                color: #ffffff;
+                box-sizing: border-box;
+            `;
+            header.innerHTML = `
+                <div style="font-size:20px; font-weight:800; letter-spacing:-0.3px;">충주예성여고 교육과정 로드맵 &nbsp;<span style="font-size:15px; font-weight:600; color:#ffdadb;">(${trackTextForHeader})</span></div>
+                ${infoText ? `<div style="margin-top:6px; font-size:16px; font-weight:700; color:#ffdadb;">${infoText}</div>` : ''}
+            `;
+            captureWrapper.appendChild(header);
+
             // 오프스크린 컨테이너 생성 (높이는 내용 렌더 후 동적 결정)
             offscreen = document.createElement('div');
             offscreen.style.cssText = `
-                position: fixed;
-                top: 0; left: -9999px;
-                width: ${Math.max(document.getElementById('simWrapper').offsetWidth, colCount * 200 + (colCount-1)*40 + 40)}px;
+                width: ${gridWidth}px;
                 background: #e2e8f0;
                 display: grid;
                 grid-template-columns: repeat(${colCount}, 1fr);
                 gap: 40px;
                 padding: 20px;
                 box-sizing: border-box;
-                z-index: -1;
                 overflow: visible;
                 height: auto;
             `;
-            document.body.appendChild(offscreen);
+            captureWrapper.appendChild(offscreen);
+            document.body.appendChild(captureWrapper);
 
             // 각 학기 패널을 복제해서 오프스크린에 배치
             // ★ 선택 과목만 표시: 미선택 choice 항목 및 빈 선택군 구분선 제거
@@ -1919,15 +2021,15 @@
             await new Promise(r => setTimeout(r, 300));
 
             // 실제 렌더된 높이를 정확히 측정 (공백 제거)
-            const actualH = offscreen.getBoundingClientRect().height || offscreen.scrollHeight;
-            const canvas = await html2canvas(offscreen, {
+            const actualH = captureWrapper.getBoundingClientRect().height || captureWrapper.scrollHeight;
+            const canvas = await html2canvas(captureWrapper, {
                 scale: 2,
                 useCORS: true,
                 backgroundColor: '#e2e8f0',
                 logging: false,
-                width: offscreen.offsetWidth,
+                width: captureWrapper.offsetWidth,
                 height: actualH,
-                windowWidth: offscreen.offsetWidth,
+                windowWidth: captureWrapper.offsetWidth,
                 windowHeight: actualH,
                 scrollX: 0,
                 scrollY: 0,
@@ -1937,7 +2039,11 @@
                 .options[document.getElementById('trackSelect').selectedIndex].text;
             const now = new Date();
             const stamp = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}`;
-            const filename = `충주예성여고_교육과정_${trackText}_${stamp}.png`;
+            // 파일명에 학생 정보 포함 (있을 때)
+            const namePart = [studentInfo.grade && `${studentInfo.grade}학년`, studentInfo.class && `${studentInfo.class}반`, studentInfo.number && `${studentInfo.number}번`, studentInfo.name].filter(Boolean).join('_');
+            const filename = namePart
+                ? `충주예성여고_교육과정_${namePart}_${stamp}.png`
+                : `충주예성여고_교육과정_${trackText}_${stamp}.png`;
 
             const link = document.createElement('a');
             link.download = filename;
@@ -1949,7 +2055,7 @@
             alert('이미지 저장 중 오류가 발생했습니다: ' + e.message);
             btn.innerHTML = original;
         } finally {
-            if (offscreen) offscreen.remove(); // 오프스크린 즉시 제거
+            if (captureWrapper) captureWrapper.remove(); // 캡처용 래퍼 즉시 제거
             btn.disabled = false;
             setTimeout(() => { btn.innerHTML = original; }, 2000);
         }
