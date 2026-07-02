@@ -448,6 +448,10 @@
         학생 과목 불러오기
     </button>
     <button class="main-tab-btn" onclick="switchTab('simulator')">로드맵 시뮬레이터</button>
+    <button class="main-tab-btn" onclick="switchTab('fulfillment')">
+        <span class="material-icons-round" style="font-size:14px;vertical-align:middle;">bar_chart</span>
+        필수 이수 충족 확인
+    </button>
     <button class="main-tab-btn" onclick="switchTab('admission')">대입 권장과목 검색</button>
     <button class="main-tab-btn utility" onclick="switchTab('full')">원자료 표</button>
 </div>
@@ -499,6 +503,27 @@
             <span class="material-icons-round">error</span>
             <span id="uploadErrorMsg" style="font-weight:700; font-size:0.85rem;"></span>
         </div>
+    </div>
+</div>
+
+<div id="tab-fulfillment" class="hidden" style="flex:1; overflow:auto; padding:24px; background:#f1f3f6;">
+    <div style="max-width:1100px; margin:0 auto; background:white; border:1px solid #dbe3ef; border-radius:12px; padding:24px; box-shadow:0 2px 5px rgba(15,23,42,0.06);">
+        <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; margin-bottom:6px;">
+            <div style="display:flex; align-items:center; gap:10px;">
+                <span class="material-icons-round" style="color:var(--md-sys-color-primary); font-size:24px;">bar_chart</span>
+                <h2 style="margin:0; font-size:1.05rem; color:#0f172a;">교과 영역별 필수 이수 충족 여부</h2>
+            </div>
+            <div style="display:flex; align-items:center; gap:14px; font-size:0.78rem; color:#475569;">
+                <span style="display:inline-flex; align-items:center; gap:5px;"><span style="width:14px; height:14px; background:#2563eb; border-radius:3px; display:inline-block;"></span>이수 학점</span>
+                <span style="display:inline-flex; align-items:center; gap:5px;"><span style="width:14px; height:14px; background:#cbd5e1; border-radius:3px; display:inline-block;"></span>필수 이수</span>
+            </div>
+        </div>
+        <p style="margin:2px 0 18px; font-size:0.8rem; color:#64748b;">현재 선택한 과목(학교지정 필수 + 선택)을 기준으로 각 교과 영역의 필수 이수 학점 충족 여부를 표시합니다. <span style="color:#94a3b8;">* 막대 위 표기: 이수학점/필수학점(과부족)</span></p>
+
+        <div id="fulfillmentChart" style="display:flex; align-items:flex-end; justify-content:space-around; gap:8px; height:340px; padding:20px 6px 4px; border-bottom:2px solid #e2e8f0; overflow-x:auto;"></div>
+        <div id="fulfillmentLabels" style="display:flex; justify-content:space-around; gap:8px; padding-top:8px;"></div>
+
+        <div id="fulfillmentSummary" style="margin-top:22px;"></div>
     </div>
 </div>
 
@@ -819,9 +844,11 @@
         document.getElementById('tab-full').classList.toggle('hidden', tab !== 'full');
         document.getElementById('tab-admission').classList.toggle('hidden', tab !== 'admission');
         document.getElementById('tab-upload').classList.toggle('hidden', tab !== 'upload');
+        document.getElementById('tab-fulfillment').classList.toggle('hidden', tab !== 'fulfillment');
         document.querySelectorAll('.main-tab-btn').forEach(btn => btn.classList.toggle('active', btn.getAttribute('onclick').includes(tab)));
         if (tab === 'full') renderFullView();
         else if (tab === 'admission') initAdmissionSearch();
+        else if (tab === 'fulfillment') renderFulfillmentChart();
         else setTimeout(drawPaths, 100);
     }
 
@@ -1063,6 +1090,147 @@
         document.getElementById('totalSelected').innerText = selectedCourses.size;
         document.getElementById('totalMandatoryCredits').innerText = `${mand + creativeActivityCredits}`;
         document.getElementById('totalCredits').innerText = `${total} / ${graduationCredits}`;
+
+        // 필수이수 탭이 열려있으면 그래프도 갱신
+        if (!document.getElementById('tab-fulfillment').classList.contains('hidden')) {
+            renderFulfillmentChart();
+        }
+    }
+
+    // =====================================================================
+    // 교과 영역별 필수 이수 충족 여부 그래프
+    // =====================================================================
+    // 8개 교과 영역과 필수 이수 학점 (2022 개정 교육과정 일반고 기준)
+    const FULFILLMENT_AREAS = [
+        { key: '국어',   cats: ['국어'],                          required: 8  },
+        { key: '수학',   cats: ['수학'],                          required: 8  },
+        { key: '영어',   cats: ['영어'],                          required: 8  },
+        { key: '사회',   cats: ['사회','역사','지리','일반사회/윤리'], required: 14, label: '사회(역사/도덕)' },
+        { key: '과학',   cats: ['과학','물리','화학','생명','지구과학'], required: 10 },
+        { key: '체육',   cats: ['체육'],                          required: 10 },
+        { key: '예술',   cats: ['예술','음악','미술'],              required: 10 },
+        { key: '기타',   cats: ['생활/기술/정보','제2외국어/한문','교양'], required: 16, label: '기술·가정/정보/\n제2외국어/한문/교양' },
+    ];
+
+    // 현재 선택+필수 과목의 교과 영역별 이수 학점 집계
+    function computeAreaCredits() {
+        const catCredits = {}; // 세부 카테고리별 학점 누적
+
+        function addCredit(row, credit) {
+            const cat = getCourseCategory(row);
+            catCredits[cat] = (catCredits[cat] || 0) + credit;
+        }
+
+        // 학교지정 필수 과목
+        rawData.forEach(r => {
+            if (r['학교지정'] === 'True') {
+                semesters.forEach(s => {
+                    const cr = parseInt(r[`${s}_학점`] || '0');
+                    if (cr > 0) addCredit(r, cr);
+                });
+            }
+        });
+        // 학생 선택 과목
+        selectedCourses.forEach(id => {
+            const [s, n] = id.split("_");
+            const r = rawData.find(d => d['과목명'] === n && d[`${s}_학점`]);
+            if (r && r['학교지정'] !== 'True') {
+                const cr = parseInt(r[`${s}_학점`] || '0');
+                if (cr > 0) addCredit(r, cr);
+            }
+        });
+
+        // 8개 영역으로 합산
+        return FULFILLMENT_AREAS.map(area => {
+            const earned = area.cats.reduce((sum, c) => sum + (catCredits[c] || 0), 0);
+            return { key: area.key, label: area.label || area.key, required: area.required, earned };
+        });
+    }
+
+    function renderFulfillmentChart() {
+        const areas = computeAreaCredits();
+        const chart = document.getElementById('fulfillmentChart');
+        const labelRow = document.getElementById('fulfillmentLabels');
+        if (!chart) return;
+
+        // Y축 최대값 (가장 큰 값 기준, 최소 25)
+        const maxVal = Math.max(25, ...areas.map(a => Math.max(a.earned, a.required)));
+        const chartH = 300; // px
+
+        chart.innerHTML = '';
+        labelRow.innerHTML = '';
+
+        areas.forEach(a => {
+            const diff = a.earned - a.required;
+            const met = diff >= 0;
+            const earnedH = Math.round((a.earned / maxVal) * chartH);
+            const reqH    = Math.round((a.required / maxVal) * chartH);
+
+            // 막대 그룹 (이수학점 파랑 + 필수이수 회색)
+            const col = document.createElement('div');
+            col.style.cssText = 'flex:1; min-width:70px; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; height:100%; position:relative;';
+
+            const diffText = diff > 0 ? `(+${diff})` : diff < 0 ? `(${diff})` : '(±0)';
+            const diffColor = met ? '#2563eb' : '#dc2626';
+
+            col.innerHTML = `
+                <div style="font-size:0.72rem; font-weight:700; color:${diffColor}; margin-bottom:4px; white-space:nowrap;">
+                    ${a.earned}/${a.required} <span style="font-size:0.68rem;">${diffText}</span>
+                </div>
+                <div style="display:flex; align-items:flex-end; gap:3px; height:${chartH}px;">
+                    <div title="이수 학점 ${a.earned}" style="width:26px; height:${earnedH}px; background:${met ? '#2563eb' : '#dc2626'}; border-radius:4px 4px 0 0; transition:height 0.4s;"></div>
+                    <div title="필수 이수 ${a.required}" style="width:26px; height:${reqH}px; background:#cbd5e1; border-radius:4px 4px 0 0;"></div>
+                </div>`;
+            chart.appendChild(col);
+
+            // X축 라벨
+            const lbl = document.createElement('div');
+            lbl.style.cssText = 'flex:1; min-width:70px; text-align:center; font-size:0.75rem; font-weight:700; color:#334155; white-space:pre-line; line-height:1.3;';
+            lbl.textContent = a.label;
+            labelRow.appendChild(lbl);
+        });
+
+        // 요약 표
+        const summary = document.getElementById('fulfillmentSummary');
+        const totalEarned = areas.reduce((s,a)=>s+a.earned,0);
+        const notMet = areas.filter(a => a.earned < a.required);
+
+        let rows = areas.map(a => {
+            const diff = a.earned - a.required;
+            const met = diff >= 0;
+            return `<tr>
+                <td style="padding:8px 12px; border-bottom:1px solid #f1f5f9; font-weight:600;">${a.label.replace(/\n/g,' ')}</td>
+                <td style="padding:8px 12px; border-bottom:1px solid #f1f5f9; text-align:center; font-weight:700; color:${met?'#059669':'#dc2626'};">${met?'충족':'부족'}</td>
+                <td style="padding:8px 12px; border-bottom:1px solid #f1f5f9; text-align:center; color:${met?'#2563eb':'#dc2626'}; font-weight:700;">${diff>0?'+':''}${diff}</td>
+                <td style="padding:8px 12px; border-bottom:1px solid #f1f5f9; text-align:center;">${a.earned}</td>
+                <td style="padding:8px 12px; border-bottom:1px solid #f1f5f9; text-align:center; color:#64748b;">${a.required}학점 이상</td>
+            </tr>`;
+        }).join('');
+
+        summary.innerHTML = `
+            <h3 style="font-size:0.92rem; color:#0f172a; margin:0 0 10px;">영역별 상세</h3>
+            <table style="width:100%; border-collapse:collapse; font-size:0.82rem; border:1px solid #e2e8f0; border-radius:8px; overflow:hidden;">
+                <thead>
+                    <tr style="background:#3b0014; color:white;">
+                        <th style="padding:10px 12px; text-align:left;">교과 영역</th>
+                        <th style="padding:10px 12px;">충족 여부</th>
+                        <th style="padding:10px 12px;">과부족</th>
+                        <th style="padding:10px 12px;">이수 학점</th>
+                        <th style="padding:10px 12px;">필수 조건</th>
+                    </tr>
+                </thead>
+                <tbody>${rows}</tbody>
+            </table>
+            <div style="margin-top:14px; padding:12px 16px; border-radius:8px; background:${notMet.length===0?'#dcfce7':'#fff1f2'}; border:1px solid ${notMet.length===0?'#22c55e':'#fecdd3'};">
+                <span style="font-weight:700; color:${notMet.length===0?'#166534':'#be123c'};">
+                    ${notMet.length===0
+                        ? '✅ 모든 교과 영역의 필수 이수 학점을 충족했습니다.'
+                        : `⚠️ 아직 부족한 영역이 ${notMet.length}개 있습니다: ${notMet.map(a=>a.label.replace(/\n/g,' ')).join(', ')}`}
+                </span>
+            </div>
+            <p style="margin-top:12px; font-size:0.72rem; color:#94a3b8;">
+                ※ 필수 이수 학점은 2022 개정 교육과정 일반고 기준입니다. 창의적 체험활동(18학점)은 별도이며, 졸업을 위한 총 이수 학점은 192학점입니다.
+            </p>`;
     }
 
     async function copySelectedCourses() {
