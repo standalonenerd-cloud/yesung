@@ -585,10 +585,10 @@
         }
         if (cat === '과학') {
             if (subject.includes('물리') || subject.includes('역학') || subject.includes('전자기')) return '물리';
+            if (subject.includes('세포') || subject.includes('물질대사') || subject.includes('생명') || subject.includes('생물') || subject.includes('인체')) return '생명';
             if (subject.includes('화학') || subject.includes('물질') || subject.includes('반응')) return '화학';
-            if (subject.includes('생명') || subject.includes('생물') || subject.includes('세포') || subject.includes('인체')) return '생명';
-            if (subject.includes('지구') || subject.includes('우주') || subject.includes('행성') || subject.includes('기후')) return '지구과학';
-            return '과학'; // 통합과학 등
+            if (subject.includes('지구') || subject.includes('우주') || subject.includes('행성')) return '지구과학';
+            return '과학'; // 통합과학, 기후변화와 환경생태, 융합과학 탐구 등
         }
         if (cat.includes('기술') || cat.includes('가정') || cat.includes('정보') || cat.includes('생활')) return '생활/기술/정보';
 
@@ -606,9 +606,9 @@
         }
         if (subject.includes('물리') || subject.includes('화학') || subject.includes('생명') || subject.includes('생물') || subject.includes('지구') || subject.includes('우주') || subject.includes('물질') || subject.includes('세포') || subject.includes('에너지')) {
             if (subject.includes('물리') || subject.includes('역학') || subject.includes('전자기')) return '물리';
+            if (subject.includes('세포') || subject.includes('물질대사') || subject.includes('생명') || subject.includes('생물') || subject.includes('인체')) return '생명';
             if (subject.includes('화학') || subject.includes('물질') || subject.includes('반응')) return '화학';
-            if (subject.includes('생명') || subject.includes('생물') || subject.includes('세포') || subject.includes('인체')) return '생명';
-            if (subject.includes('지구') || subject.includes('우주') || subject.includes('행성') || subject.includes('기후')) return '지구과학';
+            if (subject.includes('지구') || subject.includes('우주') || subject.includes('행성')) return '지구과학';
             return '과학';
         }
         if (subject.includes('스포츠') || subject.includes('운동')) return '체육';
@@ -1438,43 +1438,78 @@
         btn.innerHTML = '<span class="material-icons-round">hourglass_empty</span>캡처 중...';
         btn.disabled = true;
 
-        // ── 전체 스크롤 캡처를 위한 전처리 ──────────────────────────────
-        // 1) 각 학기 패널의 스크롤을 맨 위로 올리고
-        // 2) 패널 높이를 scrollHeight(전체 내용 높이)로 임시 확장
-        // 3) 캡처 후 원래 상태로 복원
-        const panels = Array.from(document.querySelectorAll('.semester-content'));
-        const origStyles = panels.map(p => ({
-            height: p.style.height,
-            overflow: p.style.overflow,
-            scrollTop: p.scrollTop,
-        }));
-        panels.forEach(p => {
-            p.scrollTop = 0;
-            p.style.overflow = 'visible';
-            p.style.height = p.scrollHeight + 'px';
-        });
-
-        // 페이드아웃 마스크(::after)도 숨김
-        const semPanels = Array.from(document.querySelectorAll('.semester-panel'));
-        semPanels.forEach(p => p.classList.add('scrolled-to-bottom'));
-
-        // SVG 경로 다시 그리기
-        drawPaths();
-        await new Promise(r => setTimeout(r, 120));
-
+        // ── 전략: 캡처 전용 오프스크린 div 생성 ─────────────────────────
+        // simWrapper 안의 simulator-container를 복제해 스크롤/overflow 제약 없이
+        // 화면 밖(left:-9999px)에 완전히 펼쳐 놓은 뒤 캡처 → 원본은 그대로 유지
+        let offscreen = null;
         try {
-            const target = document.getElementById('simWrapper');
-            const canvas = await html2canvas(target, {
+            const source = document.getElementById('tab-simulator');
+            const colCount = semesters.length; // 6
+
+            // 각 학기 패널의 전체 내용 높이 계산
+            const contents = Array.from(document.querySelectorAll('.semester-content'));
+            const maxContentH = Math.max(...contents.map(c => c.scrollHeight)) + 60; // 여유 60px
+
+            // 오프스크린 컨테이너 생성
+            offscreen = document.createElement('div');
+            offscreen.style.cssText = `
+                position: fixed;
+                top: 0; left: -9999px;
+                width: ${Math.max(document.getElementById('simWrapper').offsetWidth, colCount * 200 + (colCount-1)*40 + 40)}px;
+                height: ${maxContentH}px;
+                background: #e2e8f0;
+                display: grid;
+                grid-template-columns: repeat(${colCount}, 1fr);
+                gap: 40px;
+                padding: 20px;
+                box-sizing: border-box;
+                z-index: -1;
+                overflow: visible;
+            `;
+            document.body.appendChild(offscreen);
+
+            // 각 학기 패널을 복제해서 오프스크린에 배치
+            const panels = Array.from(document.querySelectorAll('.semester-panel'));
+            panels.forEach(panel => {
+                const clone = panel.cloneNode(true);
+                // overflow·height 제약 모두 제거
+                clone.style.cssText = `
+                    background: white;
+                    display: flex;
+                    flex-direction: column;
+                    border-radius: 8px;
+                    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+                    border: 1px solid #cbd5e1;
+                    overflow: visible;
+                    height: auto;
+                    position: relative;
+                `;
+                // 내부 semester-content도 overflow 해제
+                const content = clone.querySelector('.semester-content');
+                if (content) {
+                    content.style.overflow = 'visible';
+                    content.style.height = 'auto';
+                    content.style.paddingBottom = '16px';
+                }
+                // 페이드 마스크(::after) 제거용 클래스 추가
+                clone.classList.add('scrolled-to-bottom');
+                offscreen.appendChild(clone);
+            });
+
+            // 렌더링 안정화 대기
+            await new Promise(r => setTimeout(r, 200));
+
+            const canvas = await html2canvas(offscreen, {
                 scale: 2,
                 useCORS: true,
                 backgroundColor: '#e2e8f0',
                 logging: false,
-                // 확장된 전체 높이 기준으로 캡처
-                height: target.scrollHeight,
-                windowWidth: target.scrollWidth,
-                windowHeight: target.scrollHeight,
-                scrollY: 0,
+                width: offscreen.offsetWidth,
+                height: offscreen.scrollHeight,
+                windowWidth: offscreen.offsetWidth,
+                windowHeight: offscreen.scrollHeight,
                 scrollX: 0,
+                scrollY: 0,
             });
 
             const trackText = document.getElementById('trackSelect')
@@ -1493,15 +1528,7 @@
             alert('이미지 저장 중 오류가 발생했습니다: ' + e.message);
             btn.innerHTML = original;
         } finally {
-            // ── 원래 상태로 복원 ─────────────────────────────────────────
-            panels.forEach((p, i) => {
-                p.style.height = origStyles[i].height;
-                p.style.overflow = origStyles[i].overflow;
-                p.scrollTop = origStyles[i].scrollTop;
-            });
-            semPanels.forEach(p => p.classList.remove('scrolled-to-bottom'));
-            updateScrollMasks();
-            drawPaths();
+            if (offscreen) offscreen.remove(); // 오프스크린 즉시 제거
             btn.disabled = false;
             setTimeout(() => { btn.innerHTML = original; }, 2000);
         }
