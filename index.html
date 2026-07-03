@@ -28,8 +28,9 @@
             
             --cat-history: #4D7C0F;      /* 역사: 올리브/진녹색 */
             --cat-geography: #0891B2;    /* 지리: 청록/바다색 */
-            --cat-social: #059669;       /* 일반사회/윤리: 민트/청록 */
-            --cat-society: #047857;      /* 사회(통합사회 등): 진한 에메랄드 */
+            --cat-social: #059669;       /* 일반사회: 민트/청록 */
+            --cat-ethics: #0D9488;       /* 윤리: 틸(teal) */
+            --cat-society: #047857;      /* 통합사회: 진한 에메랄드 */
             
             --cat-physics: #4338CA;      /* 물리: 짙은 인디고 */
             --cat-chemistry: #C026D3;    /* 화학: 자홍(Fuchsia) */
@@ -678,10 +679,16 @@
             return '예술';
         }
         if (cat === '사회') {
+            // 통합사회 (공통과목)
+            if (subject.includes('통합사회')) return '통합사회';
+            // 역사: 한국사, 세계사, 동아시아, 역사
             if (['한국사', '세계사', '동아시아', '역사'].some(k => subject.includes(k))) return '역사';
-            if (['지리'].some(k => subject.includes(k))) return '지리';
-            if (['윤리', '사회문제', '법', '정치', '경제', '현대사회'].some(k => subject.includes(k))) return '일반사회/윤리';
-            return '사회'; // 통합사회 등
+            // 지리: 지리 명칭 + 도시의 미래 탐구, 기후변화와 지속가능한 세계
+            if (subject.includes('지리') || subject.includes('도시의 미래') || subject.includes('기후변화와 지속가능')) return '지리';
+            // 윤리: 윤리 관련 과목 (현대사회와 윤리, 윤리와 사상, 인문학과 윤리, 윤리문제 탐구)
+            if (subject.includes('윤리')) return '윤리';
+            // 일반사회: 정치, 법, 경제, 사회문화, 국제관계, 금융, 사회문제
+            return '일반사회';
         }
         if (cat === '과학') {
             if (subject.includes('물리') || subject.includes('역학') || subject.includes('전자기')) return '물리';
@@ -698,11 +705,12 @@
         if (subject.includes('영어')) return '영어';
         if (subject.includes('음악') || subject.includes('합창') || subject.includes('합주') || subject.includes('시창') || subject.includes('공연')) return '음악';
         if (subject.includes('미술') || subject.includes('조형')) return '미술';
-        if (subject.includes('역사') || subject.includes('지리') || subject.includes('사회') || subject.includes('윤리') || subject.includes('정치') || subject.includes('경제') || subject.includes('문화')) {
+        if (subject.includes('역사') || subject.includes('지리') || subject.includes('사회') || subject.includes('윤리') || subject.includes('정치') || subject.includes('경제') || subject.includes('문화') || subject.includes('도시의 미래') || subject.includes('기후변화와 지속가능')) {
+            if (subject.includes('통합사회')) return '통합사회';
             if (['한국사', '세계사', '동아시아', '역사'].some(k => subject.includes(k))) return '역사';
-            if (['지리'].some(k => subject.includes(k))) return '지리';
-            if (['윤리', '사회문제', '법', '정치', '경제', '현대사회'].some(k => subject.includes(k))) return '일반사회/윤리';
-            return '사회';
+            if (subject.includes('지리') || subject.includes('도시의 미래') || subject.includes('기후변화와 지속가능')) return '지리';
+            if (subject.includes('윤리')) return '윤리';
+            return '일반사회';
         }
         if (subject.includes('물리') || subject.includes('화학') || subject.includes('생명') || subject.includes('생물') || subject.includes('지구') || subject.includes('우주') || subject.includes('물질') || subject.includes('세포') || subject.includes('에너지')) {
             if (subject.includes('물리') || subject.includes('역학') || subject.includes('전자기')) return '물리';
@@ -728,8 +736,9 @@
             
             '역사': 'var(--cat-history)',
             '지리': 'var(--cat-geography)',
-            '일반사회/윤리': 'var(--cat-social)',
-            '사회': 'var(--cat-society)',
+            '일반사회': 'var(--cat-social)',
+            '윤리': 'var(--cat-ethics)',
+            '통합사회': 'var(--cat-society)',
             
             '물리': 'var(--cat-physics)',
             '화학': 'var(--cat-chemistry)',
@@ -782,10 +791,11 @@
             '국어': 10,
             '수학': 20,
             '영어': 30,
+            '통합사회': 40,
             '역사': 41,
             '지리': 42,
-            '일반사회/윤리': 43,
-            '사회': 45,
+            '일반사회': 43,
+            '윤리': 44,
             '물리': 51,
             '화학': 52,
             '생명': 53,
@@ -812,7 +822,7 @@
 
     function getPathCategories(row) {
         const subject = row['과목명'] || '';
-        if (subject.includes('통합사회')) return ['사회', '일반사회/윤리', '지리', '역사'];
+        if (subject.includes('통합사회')) return ['통합사회', '일반사회', '윤리', '지리', '역사'];
         if (subject.includes('한국사')) return ['역사'];
         if (subject.includes('통합과학') || subject.includes('과학탐구실험')) return ['과학', '물리', '화학', '생명', '지구과학'];
         return [getCourseCategory(row)];
@@ -1168,7 +1178,7 @@
         { key: '국어',   cats: ['국어'],                          required: 8  },
         { key: '수학',   cats: ['수학'],                          required: 8  },
         { key: '영어',   cats: ['영어'],                          required: 8  },
-        { key: '사회',   cats: ['사회','역사','지리','일반사회/윤리'], required: 14, label: '사회(역사/도덕)' },
+        { key: '사회',   cats: ['통합사회','역사','지리','일반사회','윤리'], required: 14, label: '사회(역사/도덕)' },
         { key: '과학',   cats: ['과학','물리','화학','생명','지구과학'], required: 10 },
         { key: '체육',   cats: ['체육'],                          required: 10 },
         { key: '예술',   cats: ['예술','음악','미술'],              required: 10 },
